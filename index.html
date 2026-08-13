@@ -31,7 +31,7 @@ button.secondary{background:var(--accent2);color:var(--ink)}button.danger{backgr
 .modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.48);z-index:10;align-items:flex-end}.sheet{background:#fff;width:100%;border-radius:24px 24px 0 0;padding:0;max-height:92vh;overflow:hidden;display:flex;flex-direction:column}.sheet-head{position:sticky;top:0;background:#fff;z-index:2;padding:16px 18px 12px;border-bottom:1px solid var(--line)}.sheet-body{padding:14px 18px;overflow-y:auto;-webkit-overflow-scrolling:touch}.sheet-footer{position:sticky;bottom:0;background:#fff;border-top:1px solid var(--line);padding:12px 18px calc(12px + env(safe-area-inset-bottom));display:flex;gap:10px}.sheet-footer button{flex:1}
 label{font-weight:700;display:block;margin:13px 0 6px}input,textarea,select{font:inherit;font-size:16px;width:100%;padding:13px;border:1px solid var(--line);border-radius:13px;background:#fff;color:var(--ink)}textarea{min-height:90px}
 .note{font-size:13px;color:var(--muted);line-height:1.4}.photo-preview{width:100%;max-height:260px;object-fit:contain;border-radius:14px;background:#eef3f0;margin-top:10px;display:none}.row{display:flex;align-items:center;justify-content:space-between;gap:10px}
-.back{margin-bottom:12px}.chart-card{background:#fff;border:1px solid var(--line);border-radius:18px;padding:14px;margin:12px 0}.chart-title{display:flex;justify-content:space-between;gap:10px;align-items:baseline;margin-bottom:8px}.chart-title b{font-size:16px}.chart-title span{font-size:12px;color:var(--muted)}.chart-svg{width:100%;height:180px;display:block}.chart-empty{padding:18px 0;color:var(--muted);font-size:14px}.statgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}.stat{background:var(--accent2);border-radius:14px;padding:12px}.stat b{font-size:20px}.stat small{display:block;color:var(--muted)}
+.back{margin-bottom:12px}.progress-player{background:#fff;border:1px solid var(--line);border-radius:20px;padding:14px;margin:12px 0}.progress-frame{width:100%;aspect-ratio:4/3;background:#e8efeb;border-radius:16px;overflow:hidden;display:flex;align-items:center;justify-content:center}.progress-frame img{width:100%;height:100%;object-fit:contain}.progress-meta{margin-top:10px}.progress-controls{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-top:12px}.progress-speed{display:flex;align-items:center;gap:10px;margin-top:12px}.progress-speed select{flex:1}.chart-card{background:#fff;border:1px solid var(--line);border-radius:18px;padding:14px;margin:12px 0}.chart-title{display:flex;justify-content:space-between;gap:10px;align-items:baseline;margin-bottom:8px}.chart-title b{font-size:16px}.chart-title span{font-size:12px;color:var(--muted)}.chart-svg{width:100%;height:180px;display:block}.chart-empty{padding:18px 0;color:var(--muted);font-size:14px}.statgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}.stat{background:var(--accent2);border-radius:14px;padding:12px}.stat b{font-size:20px}.stat small{display:block;color:var(--muted)}
 .compare-wrap{position:relative;overflow:hidden;border-radius:18px;background:#dfe9e4;aspect-ratio:4/3}
 .compare-wrap img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
 .compare-top{clip-path:inset(0 50% 0 0)}
@@ -41,7 +41,7 @@ label{font-weight:700;display:block;margin:13px 0 6px}input,textarea,select{font
 </style>
 </head>
 <body>
-<header><div style="display:flex;align-items:flex-end;justify-content:space-between;gap:10px"><div><h1>🌿 AquaLeafLife</h1><div class="sub">Your private aquarium journal</div></div><div style="font-size:12px;color:#c8dbd4;padding-bottom:4px">v0.7.2</div></div></header>
+<header><div style="display:flex;align-items:flex-end;justify-content:space-between;gap:10px"><div><h1>🌿 AquaLeafLife</h1><div class="sub">Your private aquarium journal</div></div><div style="font-size:12px;color:#c8dbd4;padding-bottom:4px">v0.8</div></div></header>
 <main id="app"></main>
 <div class="modal" id="modal" onclick="modalBackdrop(event)"><div class="sheet" onclick="event.stopPropagation()"><div class="sheet-head"><div class="row"><h2 id="modalTitle">Add</h2><button class="secondary" type="button" onclick="closeModal()">Close</button></div></div><div id="modalBody" class="sheet-body"></div></div></div>
 <script>
@@ -108,20 +108,23 @@ function modal(title,body){document.getElementById("modalTitle").textContent=tit
 function closeModal(){chosenPhotoFile=null;chosenRecordPhoto=null;document.getElementById("modal").style.display="none"}function modalBackdrop(e){if(e.target&&e.target.id==="modal")closeModal()}
 function tank(){return db.tanks.find(t=>t.id===currentId)}
 function standalone(){return window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone===true}
-function renderHome(){
+function renderHome(){stopProgressPlayback();
 document.getElementById("app").innerHTML=`${standalone()?'':`<div class="install"><b>Install on iPhone:</b> open in Safari → Share → Add to Home Screen → turn on <b>Open as Web App</b>.</div>`}
 <div class="top"><h2>My Tanks</h2><button onclick="addTank()">＋ Add Tank</button></div><div class="actions" style="margin-top:-4px;margin-bottom:14px"><button class="secondary" onclick="backupApp()">⬇️ Backup</button><button class="secondary" onclick="restoreApp()">⬆️ Restore</button></div>
 ${db.tanks.length?db.tanks.map(t=>`<div class="card" onclick="openTank('${t.id}')">${t.photos.length?`<img src="${t.photos[t.photos.length-1].data}" alt="">`:''}<div class="pad"><h2>${esc(t.name)}</h2><div class="muted">${esc(t.type)}${t.volume?' · '+esc(t.volume)+' gal':''}</div><div class="muted">${t.photos.length} photos · ${t.plants.length} plants · ${t.fish.length} livestock records</div></div></div>`).join(""):`<div class="empty"><div class="fish">🐟🌱📸</div><h2>Start your tank journey</h2><p>Add a tank, then begin photographing how it changes over time.</p><button onclick="addTank()">＋ Add Your First Tank</button></div>`}`;
 }
 function addTank(){modal("Add Tank",`<label>Tank name</label><input id="tn" placeholder="20 Gallon Long"><label>Type</label><select id="tt"><option>Freshwater</option><option>Patio Pond</option><option>Blackwater</option><option>Saltwater</option><option>Other</option></select><label>Volume (gallons)</label><input id="tv" type="number" placeholder="20"><label>Setup date</label><input id="td" type="date" value="${today()}"><label>Notes</label><textarea id="tno" placeholder="Aquascape, goals, livestock..."></textarea><div class="actions"><button onclick="createTank()">Create Tank</button></div>`)}
 async function createTank(){const t={id:crypto.randomUUID(),name:document.getElementById("tn").value.trim()||"Unnamed Tank",type:document.getElementById("tt").value,volume:document.getElementById("tv").value,setup:document.getElementById("td").value,notes:document.getElementById("tno").value,photos:[],plants:[],fish:[],water:[],maintenance:[]};db.tanks.push(t);await save();closeModal();activeTab="overview";openTank(t.id,"overview")}
-function openTank(id,tabName=activeTab){currentId=id;activeTab=tabName||"overview";const t=tank();document.getElementById("app").innerHTML=`
+function openTank(id,tabName=activeTab){stopProgressPlayback();currentId=id;activeTab=tabName||"overview";const t=tank();document.getElementById("app").innerHTML=`
 <button class="secondary back" onclick="renderHome()">← My Tanks</button>
 <div class="top"><div><h2>${esc(t.name)}</h2><div class="muted">${esc(t.type)}${t.volume?' · '+esc(t.volume)+' gal':''}</div></div><button onclick="addPhoto()">📷 Add Photo</button></div>
 <div class="statgrid"><div class="stat"><b>${t.photos.length}</b><small>Photos</small></div><div class="stat"><b>${t.plants.length}</b><small>Plants</small></div><div class="stat"><b>${t.fish.length}</b><small>Livestock</small></div></div>
-<div class="tabs">${["Overview","Photos","Compare","Plants","Fish","Water","Maintenance"].map(x=>`<button class="tab ${activeTab===x.toLowerCase()?'active':''}" onclick="section('${x.toLowerCase()}',this)">${x}</button>`).join("")}</div>
+<div class="tabs">${["Overview","Photos","Progress","Compare","Plants","Fish","Water","Maintenance"].map(x=>`<button class="tab ${activeTab===x.toLowerCase()?'active':''}" onclick="section('${x.toLowerCase()}',this)">${x}</button>`).join("")}</div>
 <div id="overview" class="section ${activeTab==="overview"?"active":""}"><div class="card"><div class="pad"><h3>Tank Journey</h3><p>${esc(t.notes)||"No notes yet."}</p><div class="muted">Setup: ${esc(t.setup||"Not recorded")}</div></div></div>${t.photos.length?`<div class="card"><img src="${t.photos[t.photos.length-1].data}"><div class="pad"><b>Latest Progress Photo</b><div class="muted">${esc(t.photos[t.photos.length-1].date)}</div></div></div>`:`<div class="empty"><p>No progress photos yet.</p><button onclick="addPhoto()">📷 Take the First One</button></div>`}</div>
 <div id="photos" class="section ${activeTab==="photos"?"active":""}"><div class="row"><h3>Progress Photos</h3><button onclick="addPhoto()">＋ Photo</button></div>${t.photos.length?`<div class="timeline">${t.photos.slice().reverse().map(p=>`<div class="dot" style="margin-bottom:18px"><b>${esc(p.date)}</b><img src="${p.data}" style="width:100%;border-radius:14px;margin-top:7px">${p.note?`<div class="muted">${esc(p.note)}</div>`:""}</div>`).join("")}</div>`:"<p class='muted'>Your timeline will appear here.</p>"}</div>
+<div id="progress" class="section ${activeTab==="progress"?"active":""}">
+${progressPlayerHTML(t)}
+</div>
 <div id="compare" class="section ${activeTab==="compare"?"active":""}">${compareHTML(t)}</div>
 <div id="plants" class="section ${activeTab==="plants"?"active":""}"><div class="row"><h3>Plants</h3><button onclick="addRecord('plants','Plant')">＋ Add</button></div>${records(t.plants,"plants")}</div>
 <div id="fish" class="section ${activeTab==="fish"?"active":""}"><div class="row"><h3>Livestock</h3><button onclick="addRecord('fish','Fish / Livestock')">＋ Add</button></div>${records(t.fish,"fish")}</div>
@@ -132,23 +135,147 @@ ${t.water.map((w,i)=>({w,i})).slice().reverse().map(({w,i})=>`<div class="card">
 </div>
 <div id="maintenance" class="section ${activeTab==="maintenance"?"active":""}"><div class="row"><h3>Maintenance</h3><button onclick="addMaintenance()">＋ Log</button></div>${t.maintenance.map((m,i)=>({m,i})).slice().reverse().map(({m,i})=>`<div class="card"><div class="pad"><b>${esc(m.date)} · ${esc(m.type)}</b><p>${esc(m.note)}</p><div class="actions"><button class="danger" onclick="deleteMaintenanceEntry(${i})">Delete</button></div></div></div>`).join("")||"<p class='muted'>No maintenance logged yet.</p>"}</div>
 <div class="actions"><button class="danger" onclick="deleteTank()">Delete Tank</button></div>`}
-function compareHTML(t){if(t.photos.length<2)return `<div class="empty"><h3>Before / After</h3><p>Add at least two progress photos to compare growth.</p></div>`;const a=t.photos[0],b=t.photos[t.photos.length-1];return `<h3>Before / After</h3><div class="muted">${esc(a.date)} → ${esc(b.date)}</div><div class="card"><div class="pad"><div class="compare-wrap" id="compareWrap"><img src="${a.data}"><img id="compareTop" class="compare-top" src="${b.data}"><div id="compareLine" class="compare-line"></div></div><input class="range" type="range" min="0" max="100" value="50" oninput="moveCompare(this.value)"><div class="muted">Drag the slider to reveal the newer photo.</div></div></div>`}
-function moveCompare(v){const top=document.getElementById("compareTop"),line=document.getElementById("compareLine");if(top)top.style.clipPath=`inset(0 ${100-v}% 0 0)`;if(line)line.style.left=v+"%"}
-function records(a,key){
- return a.length?a.map((x,i)=>`<div class="card">${x.photo?`<img src="${x.photo}" alt="">`:""}<div class="pad">
- <b>${esc(x.name)}</b>
- ${key==="fish"&&x.count?`<div class="muted">Quantity: ${esc(x.count)}</div>`:""}
- ${key==="plants"?`<div class="muted">${(x.growthPhotos||[]).length+(x.photo?1:0)} growth photo${((x.growthPhotos||[]).length+(x.photo?1:0))===1?"":"s"}</div>`:""}
- <p class="muted">${esc(x.note||"")}</p>
- <div class="actions">
-   <button class="secondary" onclick="openRecordDetail('${key}',${i})">View Details</button>
-   <button class="secondary" onclick="editRecord('${key}',${i})">Edit</button>
-   <button class="danger" onclick="deleteRecord('${key}',${i})">Delete</button>
-   ${key==="plants"?`<button onclick="addPlantGrowthPhoto(${i})">📷 Add Growth Photo</button><button class="secondary" onclick="comparePlant(${i})">Before / After</button>`:""}
- </div>
- </div></div>`).join(""):"<p class='muted'>Nothing recorded yet.</p>"
+
+let progressTimer=null;
+let progressState={photos:[],index:0,delay:1500};
+
+function sortedTankPhotos(t){
+ return (t.photos||[])
+   .map((p,i)=>({p,i,ts:Date.parse(p.date||"")}))
+   .sort((a,b)=>{
+      const av=!Number.isNaN(a.ts), bv=!Number.isNaN(b.ts);
+      if(av&&bv)return a.ts-b.ts;
+      if(av&&!bv)return -1;
+      if(!av&&bv)return 1;
+      return a.i-b.i;
+   })
+   .map(x=>x.p);
 }
-function section(id,b){activeTab=id;document.querySelectorAll(".section").forEach(x=>x.classList.remove("active"));document.getElementById(id).classList.add("active");document.querySelectorAll(".tab").forEach(x=>x.classList.remove("active"));b.classList.add("active")}
+
+function progressPlayerHTML(t){
+ const photos=sortedTankPhotos(t);
+ if(!photos.length){
+   return `<div class="empty"><h3>Tank Progression</h3><p>Add progress photos to play your tank journey.</p></div>`;
+ }
+ return `<h3>Tank Progression</h3>
+ <div class="muted">${photos.length} photo${photos.length===1?"":"s"} · oldest to newest</div>
+ <div class="progress-player">
+   <div class="progress-frame"><img id="progressImage" src="${photos[0].data}" alt="Tank progress photo"></div>
+   <div class="progress-meta">
+     <b id="progressDate">${esc(photos[0].date||"Undated")}</b>
+     <div id="progressNote" class="muted">${esc(photos[0].note||"")}</div>
+     <div id="progressCount" class="muted">1 of ${photos.length}</div>
+   </div>
+   <div class="progress-controls">
+     <button class="secondary" onclick="progressPrev()">← Previous</button>
+     <button id="progressPlayBtn" onclick="toggleProgressPlayback()">${photos.length>1?"▶️ Play":"Only photo"}</button>
+     <button class="secondary" onclick="progressNext()">Next →</button>
+   </div>
+   <div class="progress-speed">
+     <label style="margin:0">Speed</label>
+     <select id="progressSpeed" onchange="changeProgressSpeed(this.value)">
+       <option value="2500">Slow · 2.5 sec</option>
+       <option value="1500" selected>Normal · 1.5 sec</option>
+       <option value="750">Fast · 0.75 sec</option>
+     </select>
+   </div>
+ </div>
+ <div class="note">Playback always follows the saved photo dates from oldest to newest.</div>
+ <script>setTimeout(initProgressPlayer,0)<\/script>`;
+}
+
+function initProgressPlayer(){
+ stopProgressPlayback();
+ progressState.photos=sortedTankPhotos(tank());
+ progressState.index=0;
+ progressState.delay=parseInt((document.getElementById("progressSpeed")||{}).value||"1500",10);
+ renderProgressFrame();
+}
+
+function renderProgressFrame(){
+ const photos=progressState.photos;
+ if(!photos.length)return;
+ if(progressState.index<0)progressState.index=photos.length-1;
+ if(progressState.index>=photos.length)progressState.index=0;
+ const p=photos[progressState.index];
+ const img=document.getElementById("progressImage");
+ const date=document.getElementById("progressDate");
+ const note=document.getElementById("progressNote");
+ const count=document.getElementById("progressCount");
+ if(img)img.src=p.data;
+ if(date)date.textContent=p.date||"Undated";
+ if(note)note.textContent=p.note||"";
+ if(count)count.textContent=(progressState.index+1)+" of "+photos.length;
+}
+
+function progressPrev(){
+ stopProgressPlayback();
+ progressState.index--;
+ renderProgressFrame();
+}
+function progressNext(){
+ progressState.index++;
+ renderProgressFrame();
+}
+function changeProgressSpeed(v){
+ progressState.delay=parseInt(v,10)||1500;
+ if(progressTimer){
+   stopProgressPlayback();
+   startProgressPlayback();
+ }
+}
+function startProgressPlayback(){
+ if(progressState.photos.length<2)return;
+ stopProgressPlayback();
+ const btn=document.getElementById("progressPlayBtn");
+ if(btn)btn.textContent="⏸ Pause";
+ progressTimer=setInterval(()=>{
+   progressState.index++;
+   if(progressState.index>=progressState.photos.length){
+     progressState.index=0;
+   }
+   renderProgressFrame();
+ },progressState.delay);
+}
+function stopProgressPlayback(){
+ if(progressTimer){clearInterval(progressTimer);progressTimer=null;}
+ const btn=document.getElementById("progressPlayBtn");
+ if(btn && progressState.photos.length>1)btn.textContent="▶️ Play";
+}
+function toggleProgressPlayback(){
+ if(progressTimer)stopProgressPlayback();
+ else startProgressPlayback();
+}
+
+function compareHTML(t){
+ const dated=(t.photos||[])
+   .map((p,i)=>({p,i,ts:Date.parse(p.date||"")}))
+   .filter(x=>!Number.isNaN(x.ts))
+   .sort((a,b)=>a.ts-b.ts);
+
+ if(dated.length<2){
+   return `<div class="empty"><h3>Before / After</h3><p>Add at least two progress photos with dates to compare growth.</p></div>`;
+ }
+
+ const before=dated[0].p;
+ const after=dated[dated.length-1].p;
+
+ return `<h3>Before / After</h3>
+ <div class="card"><div class="pad">
+   <div class="row" style="margin-bottom:10px">
+     <div><b>Before</b><div class="muted">${esc(before.date)}</div></div>
+     <div style="text-align:right"><b>After</b><div class="muted">${esc(after.date)}</div></div>
+   </div>
+   <div class="compare-wrap">
+     <img src="${before.data}" alt="Before">
+     <img id="compareTop" class="compare-top" src="${after.data}" alt="After">
+     <div id="compareLine" class="compare-line"></div>
+   </div>
+   <input class="range" type="range" min="0" max="100" value="50" oninput="moveCompare(this.value)">
+   <div class="row"><span class="muted">← Before</span><span class="muted">After →</span></div>
+ </div></div>`;
+}
+function section(id,b){if(id!=="progress")stopProgressPlayback();activeTab=id;document.querySelectorAll(".section").forEach(x=>x.classList.remove("active"));document.getElementById(id).classList.add("active");document.querySelectorAll(".tab").forEach(x=>x.classList.remove("active"));b.classList.add("active")}
 
 async function prepareImageForJournal(file,maxDim=1400,quality=.72){
  return new Promise((resolve,reject)=>{
@@ -336,33 +463,43 @@ async function savePlantGrowthPhoto(){
 }
 function comparePlant(i){
  const p=tank().plants[i], photos=[];
- if(p.photo)photos.push({data:p.photo,date:p.addedDate||"Original"});
- (p.growthPhotos||[]).forEach(x=>photos.push(x));
+
+ if(p.photo){
+   // If the original plant card photo has no explicit date, keep it as the earliest fallback.
+   photos.push({data:p.photo,date:p.addedDate||"",fallbackOrder:0});
+ }
+ (p.growthPhotos||[]).forEach((x,idx)=>photos.push({
+   data:x.data,
+   date:x.date||"",
+   note:x.note||"",
+   fallbackOrder:idx+1
+ }));
 
  if(photos.length<2)return alert("Add at least one growth photo after the original plant photo to compare.");
 
  photos.sort((a,b)=>{
    const da=Date.parse(a.date||"");
    const db=Date.parse(b.date||"");
-   if(Number.isNaN(da)&&Number.isNaN(db))return 0;
-   if(Number.isNaN(da))return -1;
-   if(Number.isNaN(db))return 1;
-   return da-db;
+   const aValid=!Number.isNaN(da), bValid=!Number.isNaN(db);
+   if(aValid&&bValid)return da-db;
+   if(aValid&&!bValid)return 1;
+   if(!aValid&&bValid)return -1;
+   return a.fallbackOrder-b.fallbackOrder;
  });
 
- const a=photos[0], b=photos[photos.length-1];
- const beforeDate=esc(a.date||"Older photo");
- const afterDate=esc(b.date||"Newer photo");
+ const before=photos[0], after=photos[photos.length-1];
+ const beforeLabel=before.date||"Original photo";
+ const afterLabel=after.date||"Newest photo";
 
  modal(p.name+" Growth",`
  <div class="card"><div class="pad">
  <div class="row" style="margin-bottom:10px">
-   <div><b>Before</b><div class="muted">${beforeDate}</div></div>
-   <div style="text-align:right"><b>After</b><div class="muted">${afterDate}</div></div>
+   <div><b>Before</b><div class="muted">${esc(beforeLabel)}</div></div>
+   <div style="text-align:right"><b>After</b><div class="muted">${esc(afterLabel)}</div></div>
  </div>
  <div class="compare-wrap">
-   <img src="${a.data}" alt="Before">
-   <img id="plantCompareTop" class="compare-top" src="${b.data}" alt="After">
+   <img src="${before.data}" alt="Before">
+   <img id="plantCompareTop" class="compare-top" src="${after.data}" alt="After">
    <div id="plantCompareLine" class="compare-line"></div>
  </div>
  <input class="range" type="range" min="0" max="100" value="50" oninput="movePlantCompare(this.value)">
