@@ -41,7 +41,7 @@ label{font-weight:700;display:block;margin:13px 0 6px}input,textarea,select{font
 </style>
 </head>
 <body>
-<header><div style="display:flex;align-items:flex-end;justify-content:space-between;gap:10px"><div><h1>🌿 AquaLeafLife</h1><div class="sub">Your private aquarium journal</div></div><div style="font-size:12px;color:#c8dbd4;padding-bottom:4px">v0.7.1</div></div></header>
+<header><div style="display:flex;align-items:flex-end;justify-content:space-between;gap:10px"><div><h1>🌿 AquaLeafLife</h1><div class="sub">Your private aquarium journal</div></div><div style="font-size:12px;color:#c8dbd4;padding-bottom:4px">v0.7.2</div></div></header>
 <main id="app"></main>
 <div class="modal" id="modal" onclick="modalBackdrop(event)"><div class="sheet" onclick="event.stopPropagation()"><div class="sheet-head"><div class="row"><h2 id="modalTitle">Add</h2><button class="secondary" type="button" onclick="closeModal()">Close</button></div></div><div id="modalBody" class="sheet-body"></div></div></div>
 <script>
@@ -121,20 +121,7 @@ function openTank(id,tabName=activeTab){currentId=id;activeTab=tabName||"overvie
 <div class="statgrid"><div class="stat"><b>${t.photos.length}</b><small>Photos</small></div><div class="stat"><b>${t.plants.length}</b><small>Plants</small></div><div class="stat"><b>${t.fish.length}</b><small>Livestock</small></div></div>
 <div class="tabs">${["Overview","Photos","Compare","Plants","Fish","Water","Maintenance"].map(x=>`<button class="tab ${activeTab===x.toLowerCase()?'active':''}" onclick="section('${x.toLowerCase()}',this)">${x}</button>`).join("")}</div>
 <div id="overview" class="section ${activeTab==="overview"?"active":""}"><div class="card"><div class="pad"><h3>Tank Journey</h3><p>${esc(t.notes)||"No notes yet."}</p><div class="muted">Setup: ${esc(t.setup||"Not recorded")}</div></div></div>${t.photos.length?`<div class="card"><img src="${t.photos[t.photos.length-1].data}"><div class="pad"><b>Latest Progress Photo</b><div class="muted">${esc(t.photos[t.photos.length-1].date)}</div></div></div>`:`<div class="empty"><p>No progress photos yet.</p><button onclick="addPhoto()">📷 Take the First One</button></div>`}</div>
-<div id="photos" class="section ${activeTab==="photos"?"active":""}">
-<div class="row"><h3>Progress Photos</h3><button onclick="addPhoto()">＋ Photo</button></div>
-${t.photos.length?`<div class="timeline">${t.photos.map((p,i)=>({p,i})).slice().reverse().map(({p,i})=>`
-<div class="dot" style="margin-bottom:18px">
-  <b>${esc(p.date)}</b>
-  <img src="${p.data}" style="width:100%;border-radius:14px;margin-top:7px" onclick="openProgressPhoto(${i})">
-  ${p.note?`<div class="muted">${esc(p.note)}</div>`:""}
-  <div class="actions">
-    <button class="secondary" onclick="openProgressPhoto(${i})">View</button>
-    <button class="secondary" onclick="editProgressPhoto(${i})">Edit</button>
-    <button class="danger" onclick="deleteProgressPhoto(${i})">Delete</button>
-  </div>
-</div>`).join("")}</div>`:"<p class='muted'>Your timeline will appear here.</p>"}
-</div>
+<div id="photos" class="section ${activeTab==="photos"?"active":""}"><div class="row"><h3>Progress Photos</h3><button onclick="addPhoto()">＋ Photo</button></div>${t.photos.length?`<div class="timeline">${t.photos.slice().reverse().map(p=>`<div class="dot" style="margin-bottom:18px"><b>${esc(p.date)}</b><img src="${p.data}" style="width:100%;border-radius:14px;margin-top:7px">${p.note?`<div class="muted">${esc(p.note)}</div>`:""}</div>`).join("")}</div>`:"<p class='muted'>Your timeline will appear here.</p>"}</div>
 <div id="compare" class="section ${activeTab==="compare"?"active":""}">${compareHTML(t)}</div>
 <div id="plants" class="section ${activeTab==="plants"?"active":""}"><div class="row"><h3>Plants</h3><button onclick="addRecord('plants','Plant')">＋ Add</button></div>${records(t.plants,"plants")}</div>
 <div id="fish" class="section ${activeTab==="fish"?"active":""}"><div class="row"><h3>Livestock</h3><button onclick="addRecord('fish','Fish / Livestock')">＋ Add</button></div>${records(t.fish,"fish")}</div>
@@ -145,18 +132,21 @@ ${t.water.map((w,i)=>({w,i})).slice().reverse().map(({w,i})=>`<div class="card">
 </div>
 <div id="maintenance" class="section ${activeTab==="maintenance"?"active":""}"><div class="row"><h3>Maintenance</h3><button onclick="addMaintenance()">＋ Log</button></div>${t.maintenance.map((m,i)=>({m,i})).slice().reverse().map(({m,i})=>`<div class="card"><div class="pad"><b>${esc(m.date)} · ${esc(m.type)}</b><p>${esc(m.note)}</p><div class="actions"><button class="danger" onclick="deleteMaintenanceEntry(${i})">Delete</button></div></div></div>`).join("")||"<p class='muted'>No maintenance logged yet.</p>"}</div>
 <div class="actions"><button class="danger" onclick="deleteTank()">Delete Tank</button></div>`}
-function compareHTML(t){
- if(t.photos.length<2)return `<div class="empty"><h3>Before / After</h3><p>Add at least two progress photos to compare growth.</p></div>`;
- const options=t.photos.map((p,i)=>`<option value="${i}">${esc(p.date||("Photo "+(i+1)))}</option>`).join("");
- return `<h3>Before / After</h3>
- <div class="card"><div class="pad">
-   <label>Before photo</label>
-   <select id="beforePhotoSelect" onchange="refreshTankCompare()">${options}</select>
-   <label>After photo</label>
-   <select id="afterPhotoSelect" onchange="refreshTankCompare()">${t.photos.map((p,i)=>`<option value="${i}" ${i===t.photos.length-1?"selected":""}>${esc(p.date||("Photo "+(i+1)))}</option>`).join("")}</select>
-   <div id="tankCompareArea" style="margin-top:14px"></div>
- </div></div>
- <script>setTimeout(refreshTankCompare,0)<\/script>`;
+function compareHTML(t){if(t.photos.length<2)return `<div class="empty"><h3>Before / After</h3><p>Add at least two progress photos to compare growth.</p></div>`;const a=t.photos[0],b=t.photos[t.photos.length-1];return `<h3>Before / After</h3><div class="muted">${esc(a.date)} → ${esc(b.date)}</div><div class="card"><div class="pad"><div class="compare-wrap" id="compareWrap"><img src="${a.data}"><img id="compareTop" class="compare-top" src="${b.data}"><div id="compareLine" class="compare-line"></div></div><input class="range" type="range" min="0" max="100" value="50" oninput="moveCompare(this.value)"><div class="muted">Drag the slider to reveal the newer photo.</div></div></div>`}
+function moveCompare(v){const top=document.getElementById("compareTop"),line=document.getElementById("compareLine");if(top)top.style.clipPath=`inset(0 ${100-v}% 0 0)`;if(line)line.style.left=v+"%"}
+function records(a,key){
+ return a.length?a.map((x,i)=>`<div class="card">${x.photo?`<img src="${x.photo}" alt="">`:""}<div class="pad">
+ <b>${esc(x.name)}</b>
+ ${key==="fish"&&x.count?`<div class="muted">Quantity: ${esc(x.count)}</div>`:""}
+ ${key==="plants"?`<div class="muted">${(x.growthPhotos||[]).length+(x.photo?1:0)} growth photo${((x.growthPhotos||[]).length+(x.photo?1:0))===1?"":"s"}</div>`:""}
+ <p class="muted">${esc(x.note||"")}</p>
+ <div class="actions">
+   <button class="secondary" onclick="openRecordDetail('${key}',${i})">View Details</button>
+   <button class="secondary" onclick="editRecord('${key}',${i})">Edit</button>
+   <button class="danger" onclick="deleteRecord('${key}',${i})">Delete</button>
+   ${key==="plants"?`<button onclick="addPlantGrowthPhoto(${i})">📷 Add Growth Photo</button><button class="secondary" onclick="comparePlant(${i})">Before / After</button>`:""}
+ </div>
+ </div></div>`).join(""):"<p class='muted'>Nothing recorded yet.</p>"
 }
 function section(id,b){activeTab=id;document.querySelectorAll(".section").forEach(x=>x.classList.remove("active"));document.getElementById(id).classList.add("active");document.querySelectorAll(".tab").forEach(x=>x.classList.remove("active"));b.classList.add("active")}
 
@@ -458,14 +448,12 @@ async function doRestore(){
 
 
 function waterSeries(t,key){
- return (t.water||[]).map(w=>({date:w.date,value:parseFloat(w[key])}))
+ return (t.water||[])
+   .map(w=>({date:w.date,value:parseFloat(w[key])}))
    .filter(x=>x.date&&!Number.isNaN(x.value))
    .sort((a,b)=>Date.parse(a.date)-Date.parse(b.date));
 }
-function chartNumber(v,key){
- if(key==="ph"||key==="temp")return Number(v).toFixed(1);
- return Number(v).toFixed(1);
-}
+function chartNumber(v){ return Number(v).toFixed(1); }
 function makeWaterChart(series,key){
  if(series.length<2)return `<div class="chart-empty">Add at least two dated readings to see a trend.</div>`;
  const W=320,H=165,L=38,R=10,T=12,B=28;
@@ -477,19 +465,17 @@ function makeWaterChart(series,key){
  const py=v=>T+(max-v)/(max-min)*(H-T-B);
  const points=series.map((d,i)=>`${px(i).toFixed(1)},${py(d.value).toFixed(1)}`).join(" ");
  const ticks=[max,(max+min)/2,min];
- const first=series[0].date.slice(5),last=series[series.length-1].date.slice(5);
- return `<svg class="chart-svg" viewBox="0 0 ${W} ${H}" aria-label="${key} trend">
- ${ticks.map(v=>`<line x1="${L}" y1="${py(v)}" x2="${W-R}" y2="${py(v)}" stroke="currentColor" opacity=".10"></line><text x="${L-5}" y="${py(v)+4}" text-anchor="end" font-size="10" fill="currentColor" opacity=".55">${chartNumber(v,key)}</text>`).join("")}
+ return `<svg class="chart-svg" viewBox="0 0 ${W} ${H}">
+ ${ticks.map(v=>`<line x1="${L}" y1="${py(v)}" x2="${W-R}" y2="${py(v)}" stroke="currentColor" opacity=".10"></line><text x="${L-5}" y="${py(v)+4}" text-anchor="end" font-size="10" fill="currentColor" opacity=".55">${chartNumber(v)}</text>`).join("")}
  <polyline points="${points}" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"></polyline>
- ${series.map((d,i)=>`<circle cx="${px(i)}" cy="${py(d.value)}" r="3.5" fill="currentColor"><title>${d.date}: ${chartNumber(d.value,key)}</title></circle>`).join("")}
- <text x="${L}" y="${H-7}" font-size="10" fill="currentColor" opacity=".55">${first}</text>
- <text x="${W-R}" y="${H-7}" text-anchor="end" font-size="10" fill="currentColor" opacity=".55">${last}</text>
+ ${series.map((d,i)=>`<circle cx="${px(i)}" cy="${py(d.value)}" r="3.5" fill="currentColor"><title>${d.date}: ${chartNumber(d.value)}</title></circle>`).join("")}
+ <text x="${L}" y="${H-7}" font-size="10" fill="currentColor" opacity=".55">${series[0].date.slice(5)}</text>
+ <text x="${W-R}" y="${H-7}" text-anchor="end" font-size="10" fill="currentColor" opacity=".55">${series[series.length-1].date.slice(5)}</text>
  </svg>`;
 }
 function waterChartCard(t,key,label,suffix){
- const s=waterSeries(t,key);
- const latest=s.length?s[s.length-1].value:null;
- return `<div class="chart-card"><div class="chart-title"><b>${label}</b><span>${latest===null?"No data":"Latest: "+chartNumber(latest,key)+(suffix||"")}</span></div>${makeWaterChart(s,key)}</div>`;
+ const s=waterSeries(t,key), latest=s.length?s[s.length-1].value:null;
+ return `<div class="chart-card"><div class="chart-title"><b>${label}</b><span>${latest===null?"No data":"Latest: "+chartNumber(latest)+(suffix||"")}</span></div>${makeWaterChart(s,key)}</div>`;
 }
 function waterChartsHTML(t){
  return `<h3 style="margin-top:16px">Trends</h3>
