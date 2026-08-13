@@ -41,7 +41,7 @@ label{font-weight:700;display:block;margin:13px 0 6px}input,textarea,select{font
 </style>
 </head>
 <body>
-<header><div style="display:flex;align-items:flex-end;justify-content:space-between;gap:10px"><div><h1>🌿 AquaLeafLife</h1><div class="sub">Your private aquarium journal</div></div><div style="font-size:12px;color:#c8dbd4;padding-bottom:4px">v0.5.3</div></div></header>
+<header><div style="display:flex;align-items:flex-end;justify-content:space-between;gap:10px"><div><h1>🌿 AquaLeafLife</h1><div class="sub">Your private aquarium journal</div></div><div style="font-size:12px;color:#c8dbd4;padding-bottom:4px">v0.5.4</div></div></header>
 <main id="app"></main>
 <div class="modal" id="modal" onclick="modalBackdrop(event)"><div class="sheet" onclick="event.stopPropagation()"><div class="sheet-head"><div class="row"><h2 id="modalTitle">Add</h2><button class="secondary" type="button" onclick="closeModal()">Close</button></div></div><div id="modalBody" class="sheet-body"></div></div></div>
 <script>
@@ -78,7 +78,7 @@ function openTank(id,tabName=activeTab){currentId=id;activeTab=tabName||"overvie
 function compareHTML(t){if(t.photos.length<2)return `<div class="empty"><h3>Before / After</h3><p>Add at least two progress photos to compare growth.</p></div>`;const a=t.photos[0],b=t.photos[t.photos.length-1];return `<h3>Before / After</h3><div class="muted">${esc(a.date)} → ${esc(b.date)}</div><div class="card"><div class="pad"><div class="compare-wrap" id="compareWrap"><img src="${a.data}"><img id="compareTop" class="compare-top" src="${b.data}"><div id="compareLine" class="compare-line"></div></div><input class="range" type="range" min="0" max="100" value="50" oninput="moveCompare(this.value)"><div class="muted">Drag the slider to reveal the newer photo.</div></div></div>`}
 function moveCompare(v){const top=document.getElementById("compareTop"),line=document.getElementById("compareLine");if(top)top.style.clipPath=`inset(0 ${100-v}% 0 0)`;if(line)line.style.left=v+"%"}
 function records(a,key){
- return a.length?a.map(x=>`<div class="card">${x.photo?`<img src="${x.photo}" alt="">`:""}<div class="pad"><b>${esc(x.name)}</b>${key==="fish"&&x.count?`<div class="muted">Quantity: ${esc(x.count)}</div>`:""}<p class="muted">${esc(x.note||"")}</p></div></div>`).join(""):"<p class='muted'>Nothing recorded yet.</p>"
+ return a.length?a.map((x,i)=>`<div class="card">${x.photo?`<img src="${x.photo}" alt="">`:""}<div class="pad"><b>${esc(x.name)}</b>${key==="fish"&&x.count?`<div class="muted">Quantity: ${esc(x.count)}</div>`:""}${key==="plants"?`<div class="muted">${(x.growthPhotos||[]).length+(x.photo?1:0)} growth photo${((x.growthPhotos||[]).length+(x.photo?1:0))===1?"":"s"}</div>`:""}<p class="muted">${esc(x.note||"")}</p>${key==="plants"?`<div class="actions"><button onclick="addPlantGrowthPhoto(${i})">📷 Add Growth Photo</button><button class="secondary" onclick="comparePlant(${i})">Before / After</button></div>`:""}</div></div>`).join(""):"<p class='muted'>Nothing recorded yet.</p>"
 }
 function section(id,b){activeTab=id;document.querySelectorAll(".section").forEach(x=>x.classList.remove("active"));document.getElementById(id).classList.add("active");document.querySelectorAll(".tab").forEach(x=>x.classList.remove("active"));b.classList.add("active")}
 
@@ -232,6 +232,61 @@ async function saveRecord(key){
    alert(storageFriendlyError(err));
  }
 }
+
+let plantGrowthIndex=null, chosenPlantGrowthPhoto=null;
+function addPlantGrowthPhoto(i){
+ plantGrowthIndex=i;
+ chosenPlantGrowthPhoto=null;
+ modal("Add Plant Growth Photo",`
+ <div class="actions"><button type="button" class="secondary" onclick="document.getElementById('plantGrowthInput').click()">🖼️ Choose Photo</button></div>
+ <input id="plantGrowthInput" type="file" accept="image/*" style="display:none" onchange="plantGrowthChosen(this)">
+ <div id="plantGrowthStatus" class="muted">No photo selected.</div>
+ <img id="plantGrowthPreview" class="photo-preview" alt="Plant growth photo">
+ <label>Date</label><input id="plantGrowthDate" type="date" value="${today()}">
+ <label>Notes</label><textarea id="plantGrowthNote" placeholder="New leaves, carpeting progress, trimming, color change..."></textarea>
+ <div class="sheet-footer"><button type="button" class="secondary" onclick="closeModal()">Cancel</button><button id="plantGrowthSave" type="button" onclick="savePlantGrowthPhoto()">Save Photo</button></div>`)
+}
+function plantGrowthChosen(input){
+ const f=input.files&&input.files[0]; if(!f)return;
+ chosenPlantGrowthPhoto=f;
+ document.getElementById("plantGrowthStatus").textContent="Selected: "+(f.name||"Photo");
+ const p=document.getElementById("plantGrowthPreview"),u=URL.createObjectURL(f);
+ p.src=u;p.style.display="block";p.onload=()=>URL.revokeObjectURL(u);
+}
+async function savePlantGrowthPhoto(){
+ if(!chosenPlantGrowthPhoto)return alert("Choose a photo first.");
+ const b=document.getElementById("plantGrowthSave");
+ b.disabled=true;b.textContent="Preparing photo…";
+ try{
+   const data=await prepareImageForJournal(chosenPlantGrowthPhoto,1200,.70);
+   const p=tank().plants[plantGrowthIndex];
+   if(!p.growthPhotos)p.growthPhotos=[];
+   p.growthPhotos.push({data,date:document.getElementById("plantGrowthDate").value,note:document.getElementById("plantGrowthNote").value});
+   try{save()}catch(e){p.growthPhotos.pop();throw e}
+   chosenPlantGrowthPhoto=null;closeModal();openTank(currentId,"plants");
+ }catch(e){b.disabled=false;b.textContent="Save Photo";alert(storageFriendlyError(e))}
+}
+function comparePlant(i){
+ const p=tank().plants[i], photos=[];
+ if(p.photo)photos.push({data:p.photo,date:"Original"});
+ (p.growthPhotos||[]).forEach(x=>photos.push(x));
+ if(photos.length<2)return alert("Add at least one growth photo after the original plant photo to compare.");
+ const a=photos[0],b=photos[photos.length-1];
+ modal(p.name+" Growth",`
+ <div class="muted">${esc(a.date||"Before")} → ${esc(b.date||"After")}</div>
+ <div class="card"><div class="pad">
+ <div class="compare-wrap"><img src="${a.data}"><img id="plantCompareTop" class="compare-top" src="${b.data}"><div id="plantCompareLine" class="compare-line"></div></div>
+ <input class="range" type="range" min="0" max="100" value="50" oninput="movePlantCompare(this.value)">
+ <div class="row"><span class="muted">Before</span><span class="muted">After</span></div>
+ </div></div>
+ <div class="sheet-footer"><button type="button" class="secondary" onclick="closeModal()">Done</button></div>`)
+}
+function movePlantCompare(v){
+ const top=document.getElementById("plantCompareTop"),line=document.getElementById("plantCompareLine");
+ if(top)top.style.clipPath=`inset(0 ${100-v}% 0 0)`;
+ if(line)line.style.left=v+"%";
+}
+
 function addWater(){modal("Water Test",`<label>Date</label><input id="wd" type="date" value="${today()}"><label>pH</label><input id="ph" type="number" step=".1"><label>Temperature °F</label><input id="wt" type="number" step=".1"><label>KH</label><input id="kh" type="number" step=".1"><label>GH</label><input id="gh" type="number" step=".1"><label>Nitrate (ppm)</label><input id="no3" type="number" step=".1"><div class="actions"><button onclick="saveWater()">Save Test</button></div>`)}
 function saveWater(){const g=id=>document.getElementById(id).value;tank().water.push({date:g("wd"),ph:g("ph"),temp:g("wt"),kh:g("kh"),gh:g("gh"),no3:g("no3")});save();closeModal();openTank(currentId,"water")}
 function addMaintenance(){modal("Log Maintenance",`<label>Date</label><input id="md" type="date" value="${today()}"><label>Type</label><select id="mt"><option>Water change</option><option>Plant trimming</option><option>Filter cleaning</option><option>Fertilizer</option><option>CO₂ adjustment</option><option>Livestock added</option><option>Other</option></select><label>Notes</label><textarea id="mn"></textarea><div class="actions"><button onclick="saveMaintenance()">Save</button></div>`)}
