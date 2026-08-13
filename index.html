@@ -47,7 +47,7 @@ label{font-weight:700;display:block;margin:13px 0 6px}input,textarea,select{font
 <script>
 if('serviceWorker' in navigator){window.addEventListener('load',()=>navigator.serviceWorker.register('./service-worker.js').catch(()=>{}));}
 const KEY="aqualeaflife.prototype03";
-let db=JSON.parse(localStorage.getItem(KEY)||'{"tanks":[]}'), currentId=null;
+let db=JSON.parse(localStorage.getItem(KEY)||'{"tanks":[]}'), currentId=null, activeTab="overview";
 const today=()=>new Date().toISOString().slice(0,10);
 function save(){localStorage.setItem(KEY,JSON.stringify(db))}
 function esc(v){return String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]))}
@@ -61,32 +61,102 @@ document.getElementById("app").innerHTML=`${standalone()?'':`<div class="install
 ${db.tanks.length?db.tanks.map(t=>`<div class="card" onclick="openTank('${t.id}')">${t.photos.length?`<img src="${t.photos[t.photos.length-1].data}" alt="">`:''}<div class="pad"><h2>${esc(t.name)}</h2><div class="muted">${esc(t.type)}${t.volume?' · '+esc(t.volume)+' gal':''}</div><div class="muted">${t.photos.length} photos · ${t.plants.length} plants · ${t.fish.length} livestock records</div></div></div>`).join(""):`<div class="empty"><div class="fish">🐟🌱📸</div><h2>Start your tank journey</h2><p>Add a tank, then begin photographing how it changes over time.</p><button onclick="addTank()">＋ Add Your First Tank</button></div>`}`;
 }
 function addTank(){modal("Add Tank",`<label>Tank name</label><input id="tn" placeholder="20 Gallon Long"><label>Type</label><select id="tt"><option>Freshwater</option><option>Patio Pond</option><option>Blackwater</option><option>Saltwater</option><option>Other</option></select><label>Volume (gallons)</label><input id="tv" type="number" placeholder="20"><label>Setup date</label><input id="td" type="date" value="${today()}"><label>Notes</label><textarea id="tno" placeholder="Aquascape, goals, livestock..."></textarea><div class="actions"><button onclick="createTank()">Create Tank</button></div>`)}
-function createTank(){const t={id:crypto.randomUUID(),name:document.getElementById("tn").value.trim()||"Unnamed Tank",type:document.getElementById("tt").value,volume:document.getElementById("tv").value,setup:document.getElementById("td").value,notes:document.getElementById("tno").value,photos:[],plants:[],fish:[],water:[],maintenance:[]};db.tanks.push(t);save();closeModal();openTank(t.id)}
-function openTank(id){currentId=id;const t=tank();document.getElementById("app").innerHTML=`
+function createTank(){const t={id:crypto.randomUUID(),name:document.getElementById("tn").value.trim()||"Unnamed Tank",type:document.getElementById("tt").value,volume:document.getElementById("tv").value,setup:document.getElementById("td").value,notes:document.getElementById("tno").value,photos:[],plants:[],fish:[],water:[],maintenance:[]};db.tanks.push(t);save();closeModal();activeTab="overview";openTank(t.id,"overview")}
+function openTank(id,tabName=activeTab){currentId=id;activeTab=tabName||"overview";const t=tank();document.getElementById("app").innerHTML=`
 <button class="secondary back" onclick="renderHome()">← My Tanks</button>
 <div class="top"><div><h2>${esc(t.name)}</h2><div class="muted">${esc(t.type)}${t.volume?' · '+esc(t.volume)+' gal':''}</div></div><button onclick="addPhoto()">📷 Add Photo</button></div>
 <div class="statgrid"><div class="stat"><b>${t.photos.length}</b><small>Photos</small></div><div class="stat"><b>${t.plants.length}</b><small>Plants</small></div><div class="stat"><b>${t.fish.length}</b><small>Livestock</small></div></div>
-<div class="tabs">${["Overview","Photos","Compare","Plants","Fish","Water","Maintenance"].map((x,i)=>`<button class="tab ${i===0?'active':''}" onclick="section('${x.toLowerCase()}',this)">${x}</button>`).join("")}</div>
-<div id="overview" class="section active"><div class="card"><div class="pad"><h3>Tank Journey</h3><p>${esc(t.notes)||"No notes yet."}</p><div class="muted">Setup: ${esc(t.setup||"Not recorded")}</div></div></div>${t.photos.length?`<div class="card"><img src="${t.photos[t.photos.length-1].data}"><div class="pad"><b>Latest Progress Photo</b><div class="muted">${esc(t.photos[t.photos.length-1].date)}</div></div></div>`:`<div class="empty"><p>No progress photos yet.</p><button onclick="addPhoto()">📷 Take the First One</button></div>`}</div>
-<div id="photos" class="section"><div class="row"><h3>Progress Photos</h3><button onclick="addPhoto()">＋ Photo</button></div>${t.photos.length?`<div class="timeline">${t.photos.slice().reverse().map(p=>`<div class="dot" style="margin-bottom:18px"><b>${esc(p.date)}</b><img src="${p.data}" style="width:100%;border-radius:14px;margin-top:7px">${p.note?`<div class="muted">${esc(p.note)}</div>`:""}</div>`).join("")}</div>`:"<p class='muted'>Your timeline will appear here.</p>"}</div>
-<div id="compare" class="section">${compareHTML(t)}</div>
-<div id="plants" class="section"><div class="row"><h3>Plants</h3><button onclick="addRecord('plants','Plant')">＋ Add</button></div>${records(t.plants)}</div>
-<div id="fish" class="section"><div class="row"><h3>Livestock</h3><button onclick="addRecord('fish','Fish / Livestock')">＋ Add</button></div>${records(t.fish)}</div>
-<div id="water" class="section"><div class="row"><h3>Water Parameters</h3><button onclick="addWater()">＋ Test</button></div>${t.water.slice().reverse().map(w=>`<div class="card"><div class="pad"><b>${esc(w.date)}</b><div class="muted">pH ${esc(w.ph||"—")} · Temp ${esc(w.temp||"—")}°F · KH ${esc(w.kh||"—")} · GH ${esc(w.gh||"—")} · NO₃ ${esc(w.no3||"—")}</div></div></div>`).join("")||"<p class='muted'>No water tests yet.</p>"}</div>
-<div id="maintenance" class="section"><div class="row"><h3>Maintenance</h3><button onclick="addMaintenance()">＋ Log</button></div>${t.maintenance.slice().reverse().map(m=>`<div class="card"><div class="pad"><b>${esc(m.date)} · ${esc(m.type)}</b><p>${esc(m.note)}</p></div></div>`).join("")||"<p class='muted'>No maintenance logged yet.</p>"}</div>
+<div class="tabs">${["Overview","Photos","Compare","Plants","Fish","Water","Maintenance"].map(x=>`<button class="tab ${activeTab===x.toLowerCase()?'active':''}" onclick="section('${x.toLowerCase()}',this)">${x}</button>`).join("")}</div>
+<div id="overview" class="section ${activeTab==="overview"?"active":""}"><div class="card"><div class="pad"><h3>Tank Journey</h3><p>${esc(t.notes)||"No notes yet."}</p><div class="muted">Setup: ${esc(t.setup||"Not recorded")}</div></div></div>${t.photos.length?`<div class="card"><img src="${t.photos[t.photos.length-1].data}"><div class="pad"><b>Latest Progress Photo</b><div class="muted">${esc(t.photos[t.photos.length-1].date)}</div></div></div>`:`<div class="empty"><p>No progress photos yet.</p><button onclick="addPhoto()">📷 Take the First One</button></div>`}</div>
+<div id="photos" class="section ${activeTab==="photos"?"active":""}"><div class="row"><h3>Progress Photos</h3><button onclick="addPhoto()">＋ Photo</button></div>${t.photos.length?`<div class="timeline">${t.photos.slice().reverse().map(p=>`<div class="dot" style="margin-bottom:18px"><b>${esc(p.date)}</b><img src="${p.data}" style="width:100%;border-radius:14px;margin-top:7px">${p.note?`<div class="muted">${esc(p.note)}</div>`:""}</div>`).join("")}</div>`:"<p class='muted'>Your timeline will appear here.</p>"}</div>
+<div id="compare" class="section ${activeTab==="compare"?"active":""}">${compareHTML(t)}</div>
+<div id="plants" class="section ${activeTab==="plants"?"active":""}"><div class="row"><h3>Plants</h3><button onclick="addRecord('plants','Plant')">＋ Add</button></div>${records(t.plants,"plants")}</div>
+<div id="fish" class="section ${activeTab==="fish"?"active":""}"><div class="row"><h3>Livestock</h3><button onclick="addRecord('fish','Fish / Livestock')">＋ Add</button></div>${records(t.fish,"fish")}</div>
+<div id="water" class="section ${activeTab==="water"?"active":""}"><div class="row"><h3>Water Parameters</h3><button onclick="addWater()">＋ Test</button></div>${t.water.slice().reverse().map(w=>`<div class="card"><div class="pad"><b>${esc(w.date)}</b><div class="muted">pH ${esc(w.ph||"—")} · Temp ${esc(w.temp||"—")}°F · KH ${esc(w.kh||"—")} · GH ${esc(w.gh||"—")} · NO₃ ${esc(w.no3||"—")}</div></div></div>`).join("")||"<p class='muted'>No water tests yet.</p>"}</div>
+<div id="maintenance" class="section ${activeTab==="maintenance"?"active":""}"><div class="row"><h3>Maintenance</h3><button onclick="addMaintenance()">＋ Log</button></div>${t.maintenance.slice().reverse().map(m=>`<div class="card"><div class="pad"><b>${esc(m.date)} · ${esc(m.type)}</b><p>${esc(m.note)}</p></div></div>`).join("")||"<p class='muted'>No maintenance logged yet.</p>"}</div>
 <div class="actions"><button class="danger" onclick="deleteTank()">Delete Tank</button></div>`}
 function compareHTML(t){if(t.photos.length<2)return `<div class="empty"><h3>Before / After</h3><p>Add at least two progress photos to compare growth.</p></div>`;const a=t.photos[0],b=t.photos[t.photos.length-1];return `<h3>Before / After</h3><div class="muted">${esc(a.date)} → ${esc(b.date)}</div><div class="card"><div class="pad"><div class="compare-wrap" id="compareWrap"><img src="${a.data}"><img id="compareTop" class="compare-top" src="${b.data}"><div id="compareLine" class="compare-line"></div></div><input class="range" type="range" min="0" max="100" value="50" oninput="moveCompare(this.value)"><div class="muted">Drag the slider to reveal the newer photo.</div></div></div>`}
 function moveCompare(v){const top=document.getElementById("compareTop"),line=document.getElementById("compareLine");if(top)top.style.clipPath=`inset(0 ${100-v}% 0 0)`;if(line)line.style.left=v+"%"}
-function records(a){return a.length?a.map(x=>`<div class="card"><div class="pad"><b>${esc(x.name)}</b><p class="muted">${esc(x.note||"")}</p></div></div>`).join(""):"<p class='muted'>Nothing recorded yet.</p>"}
-function section(id,b){document.querySelectorAll(".section").forEach(x=>x.classList.remove("active"));document.getElementById(id).classList.add("active");document.querySelectorAll(".tab").forEach(x=>x.classList.remove("active"));b.classList.add("active")}
-function addPhoto(){modal("Add Progress Photo",`<label>Photo</label><input id="pf" type="file" accept="image/*" capture="environment"><label>Date</label><input id="pd" type="date" value="${today()}"><label>What changed?</label><textarea id="pn" placeholder="Trimmed plants, added fish, changed lighting..."></textarea><p class="note">Prototype 0.3 keeps your tank data in this browser's local storage. No AquaLeafLife server is included.</p><div class="actions"><button onclick="savePhoto()">Save Photo</button></div>`)}
-function savePhoto(){const f=document.getElementById("pf").files[0];if(!f)return alert("Choose a photo first.");const r=new FileReader();r.onload=()=>{tank().photos.push({data:r.result,date:document.getElementById("pd").value,note:document.getElementById("pn").value});save();closeModal();openTank(currentId)};r.readAsDataURL(f)}
-function addRecord(key,label){modal("Add "+label,`<label>Name / species</label><input id="rn" placeholder="${label==="Plant"?"Hydrocotyle tripartita":"Chili Rasbora"}"><label>Notes</label><textarea id="ro"></textarea><div class="actions"><button onclick="saveRecord('${key}')">Save</button></div>`)}
-function saveRecord(key){const n=document.getElementById("rn").value.trim();if(!n)return;tank()[key].push({name:n,note:document.getElementById("ro").value});save();closeModal();openTank(currentId)}
+function records(a,key){
+ return a.length?a.map(x=>`<div class="card">${x.photo?`<img src="${x.photo}" alt="">`:""}<div class="pad"><b>${esc(x.name)}</b>${key==="fish"&&x.count?`<div class="muted">Quantity: ${esc(x.count)}</div>`:""}<p class="muted">${esc(x.note||"")}</p></div></div>`).join(""):"<p class='muted'>Nothing recorded yet.</p>"
+}
+function section(id,b){activeTab=id;document.querySelectorAll(".section").forEach(x=>x.classList.remove("active"));document.getElementById(id).classList.add("active");document.querySelectorAll(".tab").forEach(x=>x.classList.remove("active"));b.classList.add("active")}
+function addPhoto(){modal("Add Progress Photo",`
+<div class="actions" style="margin-bottom:8px">
+<button onclick="document.getElementById('cameraInput').click()">📷 Take Photo</button>
+<button class="secondary" onclick="document.getElementById('libraryInput').click()">🖼️ Choose from Library</button>
+</div>
+<input id="cameraInput" type="file" accept="image/*" capture="environment" style="display:none" onchange="photoChosen(this)">
+<input id="libraryInput" type="file" accept="image/*" style="display:none" onchange="photoChosen(this)">
+<div id="selectedPhoto" class="muted">No photo selected yet.</div>
+<label>Date</label><input id="pd" type="date" value="${today()}">
+<label>What changed?</label><textarea id="pn" placeholder="Trimmed plants, added fish, changed lighting..."></textarea>
+<p class="note">Choosing from your library does not upload the photo to an AquaLeafLife server. The date is filled from the file date when iPhone provides one, and you can edit it before saving.</p>
+<div class="actions"><button onclick="savePhoto()">Save Photo</button></div>`)}
+let chosenPhotoFile=null;
+function photoChosen(input){
+ const f=input.files&&input.files[0]; if(!f)return;
+ chosenPhotoFile=f;
+ document.getElementById("selectedPhoto").textContent="Selected: "+f.name;
+ if(f.lastModified){
+   const d=new Date(f.lastModified);
+   if(!Number.isNaN(d.getTime())){
+     const local=new Date(d.getTime()-d.getTimezoneOffset()*60000).toISOString().slice(0,10);
+     document.getElementById("pd").value=local;
+   }
+ }
+}
+function savePhoto(){
+ const f=chosenPhotoFile;
+ if(!f)return alert("Choose a photo or take one first.");
+ const r=new FileReader();
+ r.onload=()=>{tank().photos.push({data:r.result,date:document.getElementById("pd").value,note:document.getElementById("pn").value});save();chosenPhotoFile=null;closeModal();openTank(currentId,"photos")};
+ r.readAsDataURL(f)
+}
+function addRecord(key,label){
+ const isFish=key==="fish";
+ modal("Add "+label,`
+ <label>Name / species</label>
+ <input id="rn" placeholder="${isFish?"Chili Rasbora":"Hydrocotyle tripartita"}">
+ ${isFish?`<label>Quantity</label><input id="rc" type="number" min="1" step="1" placeholder="1">`:""}
+ <label>${isFish?"Fish photo":"Plant photo"} (optional)</label>
+ <div class="actions">
+   <button class="secondary" onclick="document.getElementById('recordPhoto').click()">🖼️ Choose Photo</button>
+ </div>
+ <input id="recordPhoto" type="file" accept="image/*" style="display:none" onchange="recordPhotoChosen(this)">
+ <div id="recordPhotoName" class="muted">No photo selected.</div>
+ <label>Notes</label><textarea id="ro"></textarea>
+ <div class="actions"><button onclick="saveRecord('${key}')">Save</button></div>`)
+}
+let chosenRecordPhoto=null;
+function recordPhotoChosen(input){
+ const f=input.files&&input.files[0];
+ if(!f)return;
+ chosenRecordPhoto=f;
+ document.getElementById("recordPhotoName").textContent="Selected: "+f.name;
+}
+function saveRecord(key){
+ const n=document.getElementById("rn").value.trim();
+ if(!n)return;
+ const finish=(photoData)=>{
+   const rec={name:n,note:document.getElementById("ro").value,photo:photoData||null};
+   if(key==="fish")rec.count=document.getElementById("rc").value||"1";
+   tank()[key].push(rec);
+   save();
+   chosenRecordPhoto=null;
+   closeModal();
+   openTank(currentId,key)
+ };
+ if(chosenRecordPhoto){
+   const r=new FileReader();
+   r.onload=()=>finish(r.result);
+   r.readAsDataURL(chosenRecordPhoto);
+ } else finish(null);
+}
 function addWater(){modal("Water Test",`<label>Date</label><input id="wd" type="date" value="${today()}"><label>pH</label><input id="ph" type="number" step=".1"><label>Temperature °F</label><input id="wt" type="number" step=".1"><label>KH</label><input id="kh" type="number" step=".1"><label>GH</label><input id="gh" type="number" step=".1"><label>Nitrate (ppm)</label><input id="no3" type="number" step=".1"><div class="actions"><button onclick="saveWater()">Save Test</button></div>`)}
-function saveWater(){const g=id=>document.getElementById(id).value;tank().water.push({date:g("wd"),ph:g("ph"),temp:g("wt"),kh:g("kh"),gh:g("gh"),no3:g("no3")});save();closeModal();openTank(currentId)}
+function saveWater(){const g=id=>document.getElementById(id).value;tank().water.push({date:g("wd"),ph:g("ph"),temp:g("wt"),kh:g("kh"),gh:g("gh"),no3:g("no3")});save();closeModal();openTank(currentId,"water")}
 function addMaintenance(){modal("Log Maintenance",`<label>Date</label><input id="md" type="date" value="${today()}"><label>Type</label><select id="mt"><option>Water change</option><option>Plant trimming</option><option>Filter cleaning</option><option>Fertilizer</option><option>CO₂ adjustment</option><option>Livestock added</option><option>Other</option></select><label>Notes</label><textarea id="mn"></textarea><div class="actions"><button onclick="saveMaintenance()">Save</button></div>`)}
-function saveMaintenance(){tank().maintenance.push({date:document.getElementById("md").value,type:document.getElementById("mt").value,note:document.getElementById("mn").value});save();closeModal();openTank(currentId)}
+function saveMaintenance(){tank().maintenance.push({date:document.getElementById("md").value,type:document.getElementById("mt").value,note:document.getElementById("mn").value});save();closeModal();openTank(currentId,"maintenance")}
 function deleteTank(){if(confirm("Delete this tank and all its prototype data?")){db.tanks=db.tanks.filter(x=>x.id!==currentId);save();renderHome()}}
 renderHome();
 </script>
