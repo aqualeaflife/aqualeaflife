@@ -28,9 +28,9 @@ button.secondary{background:var(--accent2);color:var(--ink)}button.danger{backgr
 .tab{white-space:nowrap;background:var(--accent2);color:var(--ink);padding:10px 13px}.tab.active{background:var(--accent);color:#fff}
 .section{display:none}.section.active{display:block}
 .timeline{border-left:2px solid var(--line);margin:10px 0 0 8px;padding-left:15px}.timeline .dot{position:relative}.timeline .dot:before{content:"";width:9px;height:9px;border-radius:50%;background:var(--accent);position:absolute;left:-21px;top:5px}
-.modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.48);z-index:10;align-items:flex-end}.sheet{background:#fff;width:100%;border-radius:24px 24px 0 0;padding:18px 18px calc(20px + env(safe-area-inset-bottom));max-height:90vh;overflow:auto}
+.modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.48);z-index:10;align-items:flex-end}.sheet{background:#fff;width:100%;border-radius:24px 24px 0 0;padding:0;max-height:92vh;overflow:hidden;display:flex;flex-direction:column}.sheet-head{position:sticky;top:0;background:#fff;z-index:2;padding:16px 18px 12px;border-bottom:1px solid var(--line)}.sheet-body{padding:14px 18px;overflow-y:auto;-webkit-overflow-scrolling:touch}.sheet-footer{position:sticky;bottom:0;background:#fff;border-top:1px solid var(--line);padding:12px 18px calc(12px + env(safe-area-inset-bottom));display:flex;gap:10px}.sheet-footer button{flex:1}
 label{font-weight:700;display:block;margin:13px 0 6px}input,textarea,select{font:inherit;font-size:16px;width:100%;padding:13px;border:1px solid var(--line);border-radius:13px;background:#fff;color:var(--ink)}textarea{min-height:90px}
-.note{font-size:13px;color:var(--muted);line-height:1.4}.row{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.note{font-size:13px;color:var(--muted);line-height:1.4}.photo-preview{width:100%;max-height:260px;object-fit:contain;border-radius:14px;background:#eef3f0;margin-top:10px;display:none}.row{display:flex;align-items:center;justify-content:space-between;gap:10px}
 .back{margin-bottom:12px}.statgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}.stat{background:var(--accent2);border-radius:14px;padding:12px}.stat b{font-size:20px}.stat small{display:block;color:var(--muted)}
 .compare-wrap{position:relative;overflow:hidden;border-radius:18px;background:#dfe9e4;aspect-ratio:4/3}
 .compare-wrap img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
@@ -41,9 +41,9 @@ label{font-weight:700;display:block;margin:13px 0 6px}input,textarea,select{font
 </style>
 </head>
 <body>
-<header><div style="display:flex;align-items:flex-end;justify-content:space-between;gap:10px"><div><h1>🌿 AquaLeafLife</h1><div class="sub">Your private aquarium journal</div></div><div style="font-size:12px;color:#c8dbd4;padding-bottom:4px">v0.5.1</div></div></header>
+<header><div style="display:flex;align-items:flex-end;justify-content:space-between;gap:10px"><div><h1>🌿 AquaLeafLife</h1><div class="sub">Your private aquarium journal</div></div><div style="font-size:12px;color:#c8dbd4;padding-bottom:4px">v0.5.2</div></div></header>
 <main id="app"></main>
-<div class="modal" id="modal"><div class="sheet"><div class="row"><h2 id="modalTitle">Add</h2><button class="secondary" onclick="closeModal()">Close</button></div><div id="modalBody"></div></div></div>
+<div class="modal" id="modal" onclick="modalBackdrop(event)"><div class="sheet" onclick="event.stopPropagation()"><div class="sheet-head"><div class="row"><h2 id="modalTitle">Add</h2><button class="secondary" type="button" onclick="closeModal()">Close</button></div></div><div id="modalBody" class="sheet-body"></div></div></div>
 <script>
 if('serviceWorker' in navigator){window.addEventListener('load',()=>navigator.serviceWorker.register('./service-worker.js').catch(()=>{}));}
 const KEY="aqualeaflife.prototype03";
@@ -52,7 +52,7 @@ const today=()=>new Date().toISOString().slice(0,10);
 function save(){localStorage.setItem(KEY,JSON.stringify(db))}
 function esc(v){return String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]))}
 function modal(title,body){document.getElementById("modalTitle").textContent=title;document.getElementById("modalBody").innerHTML=body;document.getElementById("modal").style.display="flex"}
-function closeModal(){document.getElementById("modal").style.display="none"}
+function closeModal(){chosenPhotoFile=null;chosenRecordPhoto=null;document.getElementById("modal").style.display="none"}function modalBackdrop(e){if(e.target&&e.target.id==="modal")closeModal()}
 function tank(){return db.tanks.find(t=>t.id===currentId)}
 function standalone(){return window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone===true}
 function renderHome(){
@@ -82,35 +82,64 @@ function records(a,key){
 }
 function section(id,b){activeTab=id;document.querySelectorAll(".section").forEach(x=>x.classList.remove("active"));document.getElementById(id).classList.add("active");document.querySelectorAll(".tab").forEach(x=>x.classList.remove("active"));b.classList.add("active")}
 function addPhoto(){modal("Add Progress Photo",`
-<div class="actions" style="margin-bottom:8px">
-<button onclick="document.getElementById('cameraInput').click()">📷 Take Photo</button>
-<button class="secondary" onclick="document.getElementById('libraryInput').click()">🖼️ Choose from Library</button>
+<div class="actions" style="margin-top:0;margin-bottom:8px">
+<button type="button" onclick="document.getElementById('cameraInput').click()">📷 Take Photo</button>
+<button type="button" class="secondary" onclick="document.getElementById('libraryInput').click()">🖼️ Choose from Library</button>
 </div>
 <input id="cameraInput" type="file" accept="image/*" capture="environment" style="display:none" onchange="photoChosen(this)">
 <input id="libraryInput" type="file" accept="image/*" style="display:none" onchange="photoChosen(this)">
 <div id="selectedPhoto" class="muted">No photo selected yet.</div>
+<img id="photoPreview" class="photo-preview" alt="Selected photo preview">
 <label>Date</label><input id="pd" type="date" value="${today()}">
 <label>What changed?</label><textarea id="pn" placeholder="Trimmed plants, added fish, changed lighting..."></textarea>
-<p class="note">Choosing from your library does not upload the photo to an AquaLeafLife server. The date is filled from the file date when iPhone provides one, and you can edit it before saving.</p>
-<div class="actions"><button onclick="savePhoto()">Save Photo</button></div>`)}
+<p class="note">The photo stays in AquaLeafLife's local browser storage for this prototype.</p>
+<div class="sheet-footer">
+<button type="button" class="secondary" onclick="closeModal()">Cancel</button>
+<button type="button" id="savePhotoBtn" onclick="savePhoto()">Save Photo</button>
+</div>`)}
 let chosenPhotoFile=null;
 function photoChosen(input){
- const f=input.files&&input.files[0]; if(!f)return;
+ const f=input.files&&input.files[0];
+ if(!f)return;
  chosenPhotoFile=f;
- document.getElementById("selectedPhoto").textContent="Selected: "+f.name;
+ const status=document.getElementById("selectedPhoto");
+ if(status)status.textContent="Selected: "+(f.name||"Photo");
+ const preview=document.getElementById("photoPreview");
+ if(preview){
+   const u=URL.createObjectURL(f);
+   preview.src=u;
+   preview.style.display="block";
+   preview.onload=()=>URL.revokeObjectURL(u);
+ }
  if(f.lastModified){
    const d=new Date(f.lastModified);
    if(!Number.isNaN(d.getTime())){
      const local=new Date(d.getTime()-d.getTimezoneOffset()*60000).toISOString().slice(0,10);
-     document.getElementById("pd").value=local;
+     const dateField=document.getElementById("pd");
+     if(dateField)dateField.value=local;
    }
  }
 }
 function savePhoto(){
  const f=chosenPhotoFile;
- if(!f)return alert("Choose a photo or take one first.");
+ if(!f){alert("Choose a photo or take one first.");return;}
+ const btn=document.getElementById("savePhotoBtn");
+ if(btn){btn.disabled=true;btn.textContent="Saving…";}
  const r=new FileReader();
- r.onload=()=>{tank().photos.push({data:r.result,date:document.getElementById("pd").value,note:document.getElementById("pn").value});save();chosenPhotoFile=null;closeModal();openTank(currentId,"photos")};
+ r.onerror=()=>{if(btn){btn.disabled=false;btn.textContent="Save Photo";}alert("AquaLeafLife could not read that photo. Try choosing it again.");};
+ r.onload=()=>{
+   try{
+     tank().photos.push({data:r.result,date:document.getElementById("pd").value,note:document.getElementById("pn").value});
+     save();
+     chosenPhotoFile=null;
+     closeModal();
+     openTank(currentId,"photos");
+   }catch(err){
+     tank().photos.pop();
+     if(btn){btn.disabled=false;btn.textContent="Save Photo";}
+     alert("That photo is too large for this prototype's local storage. Try a smaller photo for now.");
+   }
+ };
  r.readAsDataURL(f)
 }
 function addRecord(key,label){
