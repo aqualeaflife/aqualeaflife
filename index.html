@@ -41,7 +41,7 @@ label{font-weight:700;display:block;margin:13px 0 6px}input,textarea,select{font
 </style>
 </head>
 <body>
-<header><div style="display:flex;align-items:flex-end;justify-content:space-between;gap:10px"><div><h1>🌿 AquaLeafLife</h1><div class="sub">Your private aquarium journal</div></div><div style="font-size:12px;color:#c8dbd4;padding-bottom:4px">v0.6.1</div></div></header>
+<header><div style="display:flex;align-items:flex-end;justify-content:space-between;gap:10px"><div><h1>🌿 AquaLeafLife</h1><div class="sub">Your private aquarium journal</div></div><div style="font-size:12px;color:#c8dbd4;padding-bottom:4px">v0.6.2</div></div></header>
 <main id="app"></main>
 <div class="modal" id="modal" onclick="modalBackdrop(event)"><div class="sheet" onclick="event.stopPropagation()"><div class="sheet-head"><div class="row"><h2 id="modalTitle">Add</h2><button class="secondary" type="button" onclick="closeModal()">Close</button></div></div><div id="modalBody" class="sheet-body"></div></div></div>
 <script>
@@ -121,28 +121,38 @@ function openTank(id,tabName=activeTab){currentId=id;activeTab=tabName||"overvie
 <div class="statgrid"><div class="stat"><b>${t.photos.length}</b><small>Photos</small></div><div class="stat"><b>${t.plants.length}</b><small>Plants</small></div><div class="stat"><b>${t.fish.length}</b><small>Livestock</small></div></div>
 <div class="tabs">${["Overview","Photos","Compare","Plants","Fish","Water","Maintenance"].map(x=>`<button class="tab ${activeTab===x.toLowerCase()?'active':''}" onclick="section('${x.toLowerCase()}',this)">${x}</button>`).join("")}</div>
 <div id="overview" class="section ${activeTab==="overview"?"active":""}"><div class="card"><div class="pad"><h3>Tank Journey</h3><p>${esc(t.notes)||"No notes yet."}</p><div class="muted">Setup: ${esc(t.setup||"Not recorded")}</div></div></div>${t.photos.length?`<div class="card"><img src="${t.photos[t.photos.length-1].data}"><div class="pad"><b>Latest Progress Photo</b><div class="muted">${esc(t.photos[t.photos.length-1].date)}</div></div></div>`:`<div class="empty"><p>No progress photos yet.</p><button onclick="addPhoto()">📷 Take the First One</button></div>`}</div>
-<div id="photos" class="section ${activeTab==="photos"?"active":""}"><div class="row"><h3>Progress Photos</h3><button onclick="addPhoto()">＋ Photo</button></div>${t.photos.length?`<div class="timeline">${t.photos.slice().reverse().map(p=>`<div class="dot" style="margin-bottom:18px"><b>${esc(p.date)}</b><img src="${p.data}" style="width:100%;border-radius:14px;margin-top:7px">${p.note?`<div class="muted">${esc(p.note)}</div>`:""}</div>`).join("")}</div>`:"<p class='muted'>Your timeline will appear here.</p>"}</div>
+<div id="photos" class="section ${activeTab==="photos"?"active":""}">
+<div class="row"><h3>Progress Photos</h3><button onclick="addPhoto()">＋ Photo</button></div>
+${t.photos.length?`<div class="timeline">${t.photos.map((p,i)=>({p,i})).slice().reverse().map(({p,i})=>`
+<div class="dot" style="margin-bottom:18px">
+  <b>${esc(p.date)}</b>
+  <img src="${p.data}" style="width:100%;border-radius:14px;margin-top:7px" onclick="openProgressPhoto(${i})">
+  ${p.note?`<div class="muted">${esc(p.note)}</div>`:""}
+  <div class="actions">
+    <button class="secondary" onclick="openProgressPhoto(${i})">View</button>
+    <button class="secondary" onclick="editProgressPhoto(${i})">Edit</button>
+    <button class="danger" onclick="deleteProgressPhoto(${i})">Delete</button>
+  </div>
+</div>`).join("")}</div>`:"<p class='muted'>Your timeline will appear here.</p>"}
+</div>
 <div id="compare" class="section ${activeTab==="compare"?"active":""}">${compareHTML(t)}</div>
 <div id="plants" class="section ${activeTab==="plants"?"active":""}"><div class="row"><h3>Plants</h3><button onclick="addRecord('plants','Plant')">＋ Add</button></div>${records(t.plants,"plants")}</div>
 <div id="fish" class="section ${activeTab==="fish"?"active":""}"><div class="row"><h3>Livestock</h3><button onclick="addRecord('fish','Fish / Livestock')">＋ Add</button></div>${records(t.fish,"fish")}</div>
 <div id="water" class="section ${activeTab==="water"?"active":""}"><div class="row"><h3>Water Parameters</h3><button onclick="addWater()">＋ Test</button></div>${t.water.map((w,i)=>({w,i})).slice().reverse().map(({w,i})=>`<div class="card"><div class="pad"><b>${esc(w.date)}</b><div class="muted">pH ${esc(w.ph||"—")} · Temp ${esc(w.temp||"—")}°F · KH ${esc(w.kh||"—")} · GH ${esc(w.gh||"—")} · NO₃ ${esc(w.no3||"—")}</div><div class="actions"><button class="danger" onclick="deleteWaterEntry(${i})">Delete</button></div></div></div>`).join("")||"<p class='muted'>No water tests yet.</p>"}</div>
 <div id="maintenance" class="section ${activeTab==="maintenance"?"active":""}"><div class="row"><h3>Maintenance</h3><button onclick="addMaintenance()">＋ Log</button></div>${t.maintenance.map((m,i)=>({m,i})).slice().reverse().map(({m,i})=>`<div class="card"><div class="pad"><b>${esc(m.date)} · ${esc(m.type)}</b><p>${esc(m.note)}</p><div class="actions"><button class="danger" onclick="deleteMaintenanceEntry(${i})">Delete</button></div></div></div>`).join("")||"<p class='muted'>No maintenance logged yet.</p>"}</div>
 <div class="actions"><button class="danger" onclick="deleteTank()">Delete Tank</button></div>`}
-function compareHTML(t){if(t.photos.length<2)return `<div class="empty"><h3>Before / After</h3><p>Add at least two progress photos to compare growth.</p></div>`;const a=t.photos[0],b=t.photos[t.photos.length-1];return `<h3>Before / After</h3><div class="muted">${esc(a.date)} → ${esc(b.date)}</div><div class="card"><div class="pad"><div class="compare-wrap" id="compareWrap"><img src="${a.data}"><img id="compareTop" class="compare-top" src="${b.data}"><div id="compareLine" class="compare-line"></div></div><input class="range" type="range" min="0" max="100" value="50" oninput="moveCompare(this.value)"><div class="muted">Drag the slider to reveal the newer photo.</div></div></div>`}
-function moveCompare(v){const top=document.getElementById("compareTop"),line=document.getElementById("compareLine");if(top)top.style.clipPath=`inset(0 ${100-v}% 0 0)`;if(line)line.style.left=v+"%"}
-function records(a,key){
- return a.length?a.map((x,i)=>`<div class="card">${x.photo?`<img src="${x.photo}" alt="">`:""}<div class="pad">
- <b>${esc(x.name)}</b>
- ${key==="fish"&&x.count?`<div class="muted">Quantity: ${esc(x.count)}</div>`:""}
- ${key==="plants"?`<div class="muted">${(x.growthPhotos||[]).length+(x.photo?1:0)} growth photo${((x.growthPhotos||[]).length+(x.photo?1:0))===1?"":"s"}</div>`:""}
- <p class="muted">${esc(x.note||"")}</p>
- <div class="actions">
-   <button class="secondary" onclick="openRecordDetail('${key}',${i})">View Details</button>
-   <button class="secondary" onclick="editRecord('${key}',${i})">Edit</button>
-   <button class="danger" onclick="deleteRecord('${key}',${i})">Delete</button>
-   ${key==="plants"?`<button onclick="addPlantGrowthPhoto(${i})">📷 Add Growth Photo</button><button class="secondary" onclick="comparePlant(${i})">Before / After</button>`:""}
- </div>
- </div></div>`).join(""):"<p class='muted'>Nothing recorded yet.</p>"
+function compareHTML(t){
+ if(t.photos.length<2)return `<div class="empty"><h3>Before / After</h3><p>Add at least two progress photos to compare growth.</p></div>`;
+ const options=t.photos.map((p,i)=>`<option value="${i}">${esc(p.date||("Photo "+(i+1)))}</option>`).join("");
+ return `<h3>Before / After</h3>
+ <div class="card"><div class="pad">
+   <label>Before photo</label>
+   <select id="beforePhotoSelect" onchange="refreshTankCompare()">${options}</select>
+   <label>After photo</label>
+   <select id="afterPhotoSelect" onchange="refreshTankCompare()">${t.photos.map((p,i)=>`<option value="${i}" ${i===t.photos.length-1?"selected":""}>${esc(p.date||("Photo "+(i+1)))}</option>`).join("")}</select>
+   <div id="tankCompareArea" style="margin-top:14px"></div>
+ </div></div>
+ <script>setTimeout(refreshTankCompare,0)<\/script>`;
 }
 function section(id,b){activeTab=id;document.querySelectorAll(".section").forEach(x=>x.classList.remove("active"));document.getElementById(id).classList.add("active");document.querySelectorAll(".tab").forEach(x=>x.classList.remove("active"));b.classList.add("active")}
 
