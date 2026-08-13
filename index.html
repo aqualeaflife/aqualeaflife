@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<meta name="theme-color" content="#102b25">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="AquaLeafLife">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-192.png">
+<title>AquaLeafLife</title>
+<style>
+:root{--bg:#f3f7f4;--card:#fff;--ink:#17352d;--muted:#6c7d76;--accent:#2f7d67;--accent2:#dfeee8;--line:#dbe7e1}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display","Helvetica Neue",sans-serif}
+header{padding:calc(18px + env(safe-area-inset-top)) 18px 18px;background:#102b25;color:#fff;position:sticky;top:0;z-index:4}
+h1{font-size:30px;margin:0}h2{margin:0 0 8px}h3{margin:0 0 8px}.sub{color:#c8dbd4;margin-top:3px}
+main{padding:18px 16px calc(30px + env(safe-area-inset-bottom));max-width:720px;margin:auto}
+.top{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:15px}
+button{border:0;border-radius:14px;padding:12px 15px;font-size:15px;font-weight:700;background:var(--accent);color:#fff}
+button.secondary{background:var(--accent2);color:var(--ink)}button.danger{background:#f6dddd;color:#8a3535}
+.card{background:var(--card);border:1px solid var(--line);border-radius:20px;overflow:hidden;margin:12px 0;box-shadow:0 4px 16px rgba(23,53,45,.06)}
+.card img{width:100%;height:205px;object-fit:cover;display:block;background:#dfe9e4}.pad{padding:15px}.muted{color:var(--muted);font-size:14px}
+.empty{text-align:center;padding:55px 20px;color:var(--muted)}.empty .fish{font-size:50px}
+.actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+.tabs{display:flex;gap:7px;overflow-x:auto;padding:7px 0 12px;scrollbar-width:none}.tabs::-webkit-scrollbar{display:none}
+.tab{white-space:nowrap;background:var(--accent2);color:var(--ink);padding:10px 13px}.tab.active{background:var(--accent);color:#fff}
+.section{display:none}.section.active{display:block}
+.timeline{border-left:2px solid var(--line);margin:10px 0 0 8px;padding-left:15px}.timeline .dot{position:relative}.timeline .dot:before{content:"";width:9px;height:9px;border-radius:50%;background:var(--accent);position:absolute;left:-21px;top:5px}
+.modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.48);z-index:10;align-items:flex-end}.sheet{background:#fff;width:100%;border-radius:24px 24px 0 0;padding:18px 18px calc(20px + env(safe-area-inset-bottom));max-height:90vh;overflow:auto}
+label{font-weight:700;display:block;margin:13px 0 6px}input,textarea,select{font:inherit;font-size:16px;width:100%;padding:13px;border:1px solid var(--line);border-radius:13px;background:#fff;color:var(--ink)}textarea{min-height:90px}
+.note{font-size:13px;color:var(--muted);line-height:1.4}.row{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.back{margin-bottom:12px}.statgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}.stat{background:var(--accent2);border-radius:14px;padding:12px}.stat b{font-size:20px}.stat small{display:block;color:var(--muted)}
+.compare-wrap{position:relative;overflow:hidden;border-radius:18px;background:#dfe9e4;aspect-ratio:4/3}
+.compare-wrap img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.compare-top{clip-path:inset(0 50% 0 0)}
+.compare-line{position:absolute;top:0;bottom:0;width:2px;background:white;left:50%;box-shadow:0 0 0 1px #0002}
+.range{width:100%;margin-top:12px}
+.install{background:#fff7d8;border:1px solid #ead995;padding:12px;border-radius:14px;margin:0 0 14px}
+</style>
+</head>
+<body>
+<header><h1>🌿 AquaLeafLife</h1><div class="sub">Your private aquarium journal</div></header>
+<main id="app"></main>
+<div class="modal" id="modal"><div class="sheet"><div class="row"><h2 id="modalTitle">Add</h2><button class="secondary" onclick="closeModal()">Close</button></div><div id="modalBody"></div></div></div>
+<script>
+if('serviceWorker' in navigator){window.addEventListener('load',()=>navigator.serviceWorker.register('./service-worker.js').catch(()=>{}));}
+const KEY="aqualeaflife.prototype03";
+let db=JSON.parse(localStorage.getItem(KEY)||'{"tanks":[]}'), currentId=null;
+const today=()=>new Date().toISOString().slice(0,10);
+function save(){localStorage.setItem(KEY,JSON.stringify(db))}
+function esc(v){return String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]))}
+function modal(title,body){document.getElementById("modalTitle").textContent=title;document.getElementById("modalBody").innerHTML=body;document.getElementById("modal").style.display="flex"}
+function closeModal(){document.getElementById("modal").style.display="none"}
+function tank(){return db.tanks.find(t=>t.id===currentId)}
+function standalone(){return window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone===true}
+function renderHome(){
+document.getElementById("app").innerHTML=`${standalone()?'':`<div class="install"><b>Install on iPhone:</b> open in Safari → Share → Add to Home Screen → turn on <b>Open as Web App</b>.</div>`}
+<div class="top"><h2>My Tanks</h2><button onclick="addTank()">＋ Add Tank</button></div>
+${db.tanks.length?db.tanks.map(t=>`<div class="card" onclick="openTank('${t.id}')">${t.photos.length?`<img src="${t.photos[t.photos.length-1].data}" alt="">`:''}<div class="pad"><h2>${esc(t.name)}</h2><div class="muted">${esc(t.type)}${t.volume?' · '+esc(t.volume)+' gal':''}</div><div class="muted">${t.photos.length} photos · ${t.plants.length} plants · ${t.fish.length} livestock records</div></div></div>`).join(""):`<div class="empty"><div class="fish">🐟🌱📸</div><h2>Start your tank journey</h2><p>Add a tank, then begin photographing how it changes over time.</p><button onclick="addTank()">＋ Add Your First Tank</button></div>`}`;
+}
+function addTank(){modal("Add Tank",`<label>Tank name</label><input id="tn" placeholder="20 Gallon Long"><label>Type</label><select id="tt"><option>Freshwater</option><option>Patio Pond</option><option>Blackwater</option><option>Saltwater</option><option>Other</option></select><label>Volume (gallons)</label><input id="tv" type="number" placeholder="20"><label>Setup date</label><input id="td" type="date" value="${today()}"><label>Notes</label><textarea id="tno" placeholder="Aquascape, goals, livestock..."></textarea><div class="actions"><button onclick="createTank()">Create Tank</button></div>`)}
+function createTank(){const t={id:crypto.randomUUID(),name:document.getElementById("tn").value.trim()||"Unnamed Tank",type:document.getElementById("tt").value,volume:document.getElementById("tv").value,setup:document.getElementById("td").value,notes:document.getElementById("tno").value,photos:[],plants:[],fish:[],water:[],maintenance:[]};db.tanks.push(t);save();closeModal();openTank(t.id)}
+function openTank(id){currentId=id;const t=tank();document.getElementById("app").innerHTML=`
+<button class="secondary back" onclick="renderHome()">← My Tanks</button>
+<div class="top"><div><h2>${esc(t.name)}</h2><div class="muted">${esc(t.type)}${t.volume?' · '+esc(t.volume)+' gal':''}</div></div><button onclick="addPhoto()">📷 Add Photo</button></div>
+<div class="statgrid"><div class="stat"><b>${t.photos.length}</b><small>Photos</small></div><div class="stat"><b>${t.plants.length}</b><small>Plants</small></div><div class="stat"><b>${t.fish.length}</b><small>Livestock</small></div></div>
+<div class="tabs">${["Overview","Photos","Compare","Plants","Fish","Water","Maintenance"].map((x,i)=>`<button class="tab ${i===0?'active':''}" onclick="section('${x.toLowerCase()}',this)">${x}</button>`).join("")}</div>
+<div id="overview" class="section active"><div class="card"><div class="pad"><h3>Tank Journey</h3><p>${esc(t.notes)||"No notes yet."}</p><div class="muted">Setup: ${esc(t.setup||"Not recorded")}</div></div></div>${t.photos.length?`<div class="card"><img src="${t.photos[t.photos.length-1].data}"><div class="pad"><b>Latest Progress Photo</b><div class="muted">${esc(t.photos[t.photos.length-1].date)}</div></div></div>`:`<div class="empty"><p>No progress photos yet.</p><button onclick="addPhoto()">📷 Take the First One</button></div>`}</div>
+<div id="photos" class="section"><div class="row"><h3>Progress Photos</h3><button onclick="addPhoto()">＋ Photo</button></div>${t.photos.length?`<div class="timeline">${t.photos.slice().reverse().map(p=>`<div class="dot" style="margin-bottom:18px"><b>${esc(p.date)}</b><img src="${p.data}" style="width:100%;border-radius:14px;margin-top:7px">${p.note?`<div class="muted">${esc(p.note)}</div>`:""}</div>`).join("")}</div>`:"<p class='muted'>Your timeline will appear here.</p>"}</div>
+<div id="compare" class="section">${compareHTML(t)}</div>
+<div id="plants" class="section"><div class="row"><h3>Plants</h3><button onclick="addRecord('plants','Plant')">＋ Add</button></div>${records(t.plants)}</div>
+<div id="fish" class="section"><div class="row"><h3>Livestock</h3><button onclick="addRecord('fish','Fish / Livestock')">＋ Add</button></div>${records(t.fish)}</div>
+<div id="water" class="section"><div class="row"><h3>Water Parameters</h3><button onclick="addWater()">＋ Test</button></div>${t.water.slice().reverse().map(w=>`<div class="card"><div class="pad"><b>${esc(w.date)}</b><div class="muted">pH ${esc(w.ph||"—")} · Temp ${esc(w.temp||"—")}°F · KH ${esc(w.kh||"—")} · GH ${esc(w.gh||"—")} · NO₃ ${esc(w.no3||"—")}</div></div></div>`).join("")||"<p class='muted'>No water tests yet.</p>"}</div>
+<div id="maintenance" class="section"><div class="row"><h3>Maintenance</h3><button onclick="addMaintenance()">＋ Log</button></div>${t.maintenance.slice().reverse().map(m=>`<div class="card"><div class="pad"><b>${esc(m.date)} · ${esc(m.type)}</b><p>${esc(m.note)}</p></div></div>`).join("")||"<p class='muted'>No maintenance logged yet.</p>"}</div>
+<div class="actions"><button class="danger" onclick="deleteTank()">Delete Tank</button></div>`}
+function compareHTML(t){if(t.photos.length<2)return `<div class="empty"><h3>Before / After</h3><p>Add at least two progress photos to compare growth.</p></div>`;const a=t.photos[0],b=t.photos[t.photos.length-1];return `<h3>Before / After</h3><div class="muted">${esc(a.date)} → ${esc(b.date)}</div><div class="card"><div class="pad"><div class="compare-wrap" id="compareWrap"><img src="${a.data}"><img id="compareTop" class="compare-top" src="${b.data}"><div id="compareLine" class="compare-line"></div></div><input class="range" type="range" min="0" max="100" value="50" oninput="moveCompare(this.value)"><div class="muted">Drag the slider to reveal the newer photo.</div></div></div>`}
+function moveCompare(v){const top=document.getElementById("compareTop"),line=document.getElementById("compareLine");if(top)top.style.clipPath=`inset(0 ${100-v}% 0 0)`;if(line)line.style.left=v+"%"}
+function records(a){return a.length?a.map(x=>`<div class="card"><div class="pad"><b>${esc(x.name)}</b><p class="muted">${esc(x.note||"")}</p></div></div>`).join(""):"<p class='muted'>Nothing recorded yet.</p>"}
+function section(id,b){document.querySelectorAll(".section").forEach(x=>x.classList.remove("active"));document.getElementById(id).classList.add("active");document.querySelectorAll(".tab").forEach(x=>x.classList.remove("active"));b.classList.add("active")}
+function addPhoto(){modal("Add Progress Photo",`<label>Photo</label><input id="pf" type="file" accept="image/*" capture="environment"><label>Date</label><input id="pd" type="date" value="${today()}"><label>What changed?</label><textarea id="pn" placeholder="Trimmed plants, added fish, changed lighting..."></textarea><p class="note">Prototype 0.3 keeps your tank data in this browser's local storage. No AquaLeafLife server is included.</p><div class="actions"><button onclick="savePhoto()">Save Photo</button></div>`)}
+function savePhoto(){const f=document.getElementById("pf").files[0];if(!f)return alert("Choose a photo first.");const r=new FileReader();r.onload=()=>{tank().photos.push({data:r.result,date:document.getElementById("pd").value,note:document.getElementById("pn").value});save();closeModal();openTank(currentId)};r.readAsDataURL(f)}
+function addRecord(key,label){modal("Add "+label,`<label>Name / species</label><input id="rn" placeholder="${label==="Plant"?"Hydrocotyle tripartita":"Chili Rasbora"}"><label>Notes</label><textarea id="ro"></textarea><div class="actions"><button onclick="saveRecord('${key}')">Save</button></div>`)}
+function saveRecord(key){const n=document.getElementById("rn").value.trim();if(!n)return;tank()[key].push({name:n,note:document.getElementById("ro").value});save();closeModal();openTank(currentId)}
+function addWater(){modal("Water Test",`<label>Date</label><input id="wd" type="date" value="${today()}"><label>pH</label><input id="ph" type="number" step=".1"><label>Temperature °F</label><input id="wt" type="number" step=".1"><label>KH</label><input id="kh" type="number" step=".1"><label>GH</label><input id="gh" type="number" step=".1"><label>Nitrate (ppm)</label><input id="no3" type="number" step=".1"><div class="actions"><button onclick="saveWater()">Save Test</button></div>`)}
+function saveWater(){const g=id=>document.getElementById(id).value;tank().water.push({date:g("wd"),ph:g("ph"),temp:g("wt"),kh:g("kh"),gh:g("gh"),no3:g("no3")});save();closeModal();openTank(currentId)}
+function addMaintenance(){modal("Log Maintenance",`<label>Date</label><input id="md" type="date" value="${today()}"><label>Type</label><select id="mt"><option>Water change</option><option>Plant trimming</option><option>Filter cleaning</option><option>Fertilizer</option><option>CO₂ adjustment</option><option>Livestock added</option><option>Other</option></select><label>Notes</label><textarea id="mn"></textarea><div class="actions"><button onclick="saveMaintenance()">Save</button></div>`)}
+function saveMaintenance(){tank().maintenance.push({date:document.getElementById("md").value,type:document.getElementById("mt").value,note:document.getElementById("mn").value});save();closeModal();openTank(currentId)}
+function deleteTank(){if(confirm("Delete this tank and all its prototype data?")){db.tanks=db.tanks.filter(x=>x.id!==currentId);save();renderHome()}}
+renderHome();
+</script>
+</body>
+</html>
