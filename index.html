@@ -41,7 +41,7 @@ label{font-weight:700;display:block;margin:13px 0 6px}input,textarea,select{font
 </style>
 </head>
 <body>
-<header><div style="display:flex;align-items:flex-end;justify-content:space-between;gap:10px"><div><h1>🌿 AquaLeafLife</h1><div class="sub">Your private aquarium journal</div></div><div style="font-size:12px;color:#c8dbd4;padding-bottom:4px">v0.8</div></div></header>
+<header><div style="display:flex;align-items:flex-end;justify-content:space-between;gap:10px"><div><h1>🌿 AquaLeafLife</h1><div class="sub">Your private aquarium journal</div></div><div style="font-size:12px;color:#c8dbd4;padding-bottom:4px">v0.8.1</div></div></header>
 <main id="app"></main>
 <div class="modal" id="modal" onclick="modalBackdrop(event)"><div class="sheet" onclick="event.stopPropagation()"><div class="sheet-head"><div class="row"><h2 id="modalTitle">Add</h2><button class="secondary" type="button" onclick="closeModal()">Close</button></div></div><div id="modalBody" class="sheet-body"></div></div></div>
 <script>
@@ -513,6 +513,22 @@ function movePlantCompare(v){
  if(line)line.style.left=v+"%";
 }
 
+
+
+function records(a,key){
+ return a.length?a.map((x,i)=>`<div class="card">${x.photo?`<img src="${x.photo}" alt="">`:""}<div class="pad">
+ <b>${esc(x.name)}</b>
+ ${key==="fish"&&x.count?`<div class="muted">Quantity: ${esc(x.count)}</div>`:""}
+ ${key==="plants"?`<div class="muted">${(x.growthPhotos||[]).length+(x.photo?1:0)} growth photo${((x.growthPhotos||[]).length+(x.photo?1:0))===1?"":"s"}</div>`:""}
+ <p class="muted">${esc(x.note||"")}</p>
+ <div class="actions">
+   <button class="secondary" onclick="openRecordDetail('${key}',${i})">View Details</button>
+   <button class="secondary" onclick="editRecord('${key}',${i})">Edit</button>
+   <button class="danger" onclick="deleteRecord('${key}',${i})">Delete</button>
+   ${key==="plants"?`<button onclick="addPlantGrowthPhoto(${i})">📷 Add Growth Photo</button><button class="secondary" onclick="comparePlant(${i})">Before / After</button>`:""}
+ </div>
+ </div></div>`).join(""):"<p class='muted'>Nothing recorded yet.</p>"
+}
 
 function openRecordDetail(key,i){
  const r=tank()[key][i];
