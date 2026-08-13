@@ -41,7 +41,7 @@ label{font-weight:700;display:block;margin:13px 0 6px}input,textarea,select{font
 </style>
 </head>
 <body>
-<header><div style="display:flex;align-items:flex-end;justify-content:space-between;gap:10px"><div><h1>🌿 AquaLeafLife</h1><div class="sub">Your private aquarium journal</div></div><div style="font-size:12px;color:#c8dbd4;padding-bottom:4px">v0.5.2</div></div></header>
+<header><div style="display:flex;align-items:flex-end;justify-content:space-between;gap:10px"><div><h1>🌿 AquaLeafLife</h1><div class="sub">Your private aquarium journal</div></div><div style="font-size:12px;color:#c8dbd4;padding-bottom:4px">v0.5.3</div></div></header>
 <main id="app"></main>
 <div class="modal" id="modal" onclick="modalBackdrop(event)"><div class="sheet" onclick="event.stopPropagation()"><div class="sheet-head"><div class="row"><h2 id="modalTitle">Add</h2><button class="secondary" type="button" onclick="closeModal()">Close</button></div></div><div id="modalBody" class="sheet-body"></div></div></div>
 <script>
@@ -81,6 +81,44 @@ function records(a,key){
  return a.length?a.map(x=>`<div class="card">${x.photo?`<img src="${x.photo}" alt="">`:""}<div class="pad"><b>${esc(x.name)}</b>${key==="fish"&&x.count?`<div class="muted">Quantity: ${esc(x.count)}</div>`:""}<p class="muted">${esc(x.note||"")}</p></div></div>`).join(""):"<p class='muted'>Nothing recorded yet.</p>"
 }
 function section(id,b){activeTab=id;document.querySelectorAll(".section").forEach(x=>x.classList.remove("active"));document.getElementById(id).classList.add("active");document.querySelectorAll(".tab").forEach(x=>x.classList.remove("active"));b.classList.add("active")}
+
+async function prepareImageForJournal(file,maxDim=1400,quality=.72){
+ return new Promise((resolve,reject)=>{
+   const img=new Image();
+   const url=URL.createObjectURL(file);
+   img.onload=()=>{
+     try{
+       let w=img.naturalWidth,h=img.naturalHeight;
+       const scale=Math.min(1,maxDim/Math.max(w,h));
+       w=Math.max(1,Math.round(w*scale));
+       h=Math.max(1,Math.round(h*scale));
+       const canvas=document.createElement("canvas");
+       canvas.width=w; canvas.height=h;
+       const ctx=canvas.getContext("2d");
+       ctx.drawImage(img,0,0,w,h);
+       URL.revokeObjectURL(url);
+       const data=canvas.toDataURL("image/jpeg",quality);
+       resolve(data);
+     }catch(e){
+       URL.revokeObjectURL(url);
+       reject(e);
+     }
+   };
+   img.onerror=()=>{
+     URL.revokeObjectURL(url);
+     reject(new Error("This photo format could not be decoded by Safari."));
+   };
+   img.src=url;
+ });
+}
+function storageFriendlyError(err){
+ console.error(err);
+ if(err && (err.name==="QuotaExceededError" || String(err).includes("quota"))){
+   return "AquaLeafLife's current prototype storage is full. I can upgrade the next version to a larger on-device photo database.";
+ }
+ return "AquaLeafLife couldn't save that photo. Try choosing it again.";
+}
+
 function addPhoto(){modal("Add Progress Photo",`
 <div class="actions" style="margin-top:0;margin-bottom:8px">
 <button type="button" onclick="document.getElementById('cameraInput').click()">📷 Take Photo</button>
@@ -120,27 +158,29 @@ function photoChosen(input){
    }
  }
 }
-function savePhoto(){
+async function savePhoto(){
  const f=chosenPhotoFile;
  if(!f){alert("Choose a photo or take one first.");return;}
  const btn=document.getElementById("savePhotoBtn");
- if(btn){btn.disabled=true;btn.textContent="Saving…";}
- const r=new FileReader();
- r.onerror=()=>{if(btn){btn.disabled=false;btn.textContent="Save Photo";}alert("AquaLeafLife could not read that photo. Try choosing it again.");};
- r.onload=()=>{
+ if(btn){btn.disabled=true;btn.textContent="Preparing photo…";}
+ try{
+   const imageData=await prepareImageForJournal(f,1400,.72);
+   if(btn)btn.textContent="Saving…";
+   const rec={data:imageData,date:document.getElementById("pd").value,note:document.getElementById("pn").value};
+   tank().photos.push(rec);
    try{
-     tank().photos.push({data:r.result,date:document.getElementById("pd").value,note:document.getElementById("pn").value});
      save();
-     chosenPhotoFile=null;
-     closeModal();
-     openTank(currentId,"photos");
-   }catch(err){
+   }catch(e){
      tank().photos.pop();
-     if(btn){btn.disabled=false;btn.textContent="Save Photo";}
-     alert("That photo is too large for this prototype's local storage. Try a smaller photo for now.");
+     throw e;
    }
- };
- r.readAsDataURL(f)
+   chosenPhotoFile=null;
+   closeModal();
+   openTank(currentId,"photos");
+ }catch(err){
+   if(btn){btn.disabled=false;btn.textContent="Save Photo";}
+   alert(storageFriendlyError(err));
+ }
 }
 function addRecord(key,label){
  const isFish=key==="fish";
@@ -164,23 +204,33 @@ function recordPhotoChosen(input){
  chosenRecordPhoto=f;
  document.getElementById("recordPhotoName").textContent="Selected: "+f.name;
 }
-function saveRecord(key){
+async function saveRecord(key){
  const n=document.getElementById("rn").value.trim();
- if(!n)return;
- const finish=(photoData)=>{
-   const rec={name:n,note:document.getElementById("ro").value,photo:photoData||null};
+ if(!n)return alert("Enter a name or species first.");
+ const saveButton=document.querySelector("#modalBody .sheet-footer button:last-child, #modalBody .actions button:last-child");
+ if(saveButton){saveButton.disabled=true;saveButton.textContent="Saving…";}
+ try{
+   let photoData=null;
+   if(chosenRecordPhoto){
+     if(saveButton)saveButton.textContent="Preparing photo…";
+     photoData=await prepareImageForJournal(chosenRecordPhoto,1200,.70);
+   }
+   const rec={name:n,note:document.getElementById("ro").value,photo:photoData};
    if(key==="fish")rec.count=document.getElementById("rc").value||"1";
    tank()[key].push(rec);
-   save();
+   try{
+     save();
+   }catch(e){
+     tank()[key].pop();
+     throw e;
+   }
    chosenRecordPhoto=null;
    closeModal();
-   openTank(currentId,key)
- };
- if(chosenRecordPhoto){
-   const r=new FileReader();
-   r.onload=()=>finish(r.result);
-   r.readAsDataURL(chosenRecordPhoto);
- } else finish(null);
+   openTank(currentId,key);
+ }catch(err){
+   if(saveButton){saveButton.disabled=false;saveButton.textContent="Save";}
+   alert(storageFriendlyError(err));
+ }
 }
 function addWater(){modal("Water Test",`<label>Date</label><input id="wd" type="date" value="${today()}"><label>pH</label><input id="ph" type="number" step=".1"><label>Temperature °F</label><input id="wt" type="number" step=".1"><label>KH</label><input id="kh" type="number" step=".1"><label>GH</label><input id="gh" type="number" step=".1"><label>Nitrate (ppm)</label><input id="no3" type="number" step=".1"><div class="actions"><button onclick="saveWater()">Save Test</button></div>`)}
 function saveWater(){const g=id=>document.getElementById(id).value;tank().water.push({date:g("wd"),ph:g("ph"),temp:g("wt"),kh:g("kh"),gh:g("gh"),no3:g("no3")});save();closeModal();openTank(currentId,"water")}

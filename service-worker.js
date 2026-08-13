@@ -1,4 +1,4 @@
-const CACHE='aqualeaflife-v052';
+const CACHE='aqualeaflife-v053';
 const ASSETS=['./','./index.html','./manifest.webmanifest','./icon-192.png','./icon-512.png'];
 
 self.addEventListener('install', event => {
